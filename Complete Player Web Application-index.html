@@ -1,0 +1,215 @@
+﻿
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDS E-sport Gaming Hub</title>
+    <style>
+        :root { --primary: #00ff88; --dark: #0d0f12; --card: #181c24; --text: #ffffff; --gold: #ffd700; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--dark); color: var(--text); }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 2px solid var(--primary); }
+        .logo-container { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, #00ff88, #00b3ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #000; box-shadow: 0 0 10px rgba(0,255,136,0.5); }
+        .logo-text { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 0.5px; }
+        .wallet { background: #222a36; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: var(--gold); border: 1px solid #333; }
+        .container { padding: 15px; max-width: 600px; margin: auto; }
+        .card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #28303d; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .btn { background: var(--primary); color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn:hover { opacity: 0.9; transform: scale(1.01); }
+        .btn-gold { background: var(--gold); color: #000; }
+        .input { width: 95%; padding: 10px; margin: 8px 0; background: #0d0f12; border: 1px solid #28303d; color: #fff; border-radius: 5px; }
+        .filter-bar { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; }
+        .filter-btn { background: #222a36; color: #fff; border: none; padding: 6px 12px; border-radius: 15px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+        .filter-btn.active { background: var(--primary); color: #000; font-weight: bold; }
+        .qr-box { text-align: center; background: #fff; padding: 10px; border-radius: 8px; width: 160px; margin: 10px auto; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: var(--card); padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; border: 1px solid var(--primary); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo-container">
+            <div class="logo-icon">⚡</div>
+            <div class="logo-text">KDS E-sport<br><span style="font-size: 11px; color: #aaa; font-weight: normal;">Gaming Hub</span></div>
+        </div>
+        <div class="wallet" id="walletDisplay">Balance: ₹0</div>
+    </div>
+
+    <div class="container">
+        <!-- APP DOWNLOAD BANNER -->
+        <div id="appDownloadBanner" class="card hidden" style="background: linear-gradient(45deg, #181c24, #28303d); text-align: center;">
+            <h4 style="margin:0 0 5px 0; color:var(--gold);">📲 Install Official Android App</h4>
+            <button class="btn btn-gold" onclick="downloadApp()">Download APK Now</button>
+        </div>
+
+        <!-- AUTH BOX -->
+        <div id="authBox" class="card">
+            <h3 style="margin-top: 0; color: var(--primary);">🔐 Dual Login / Register</h3>
+            <input type="text" id="authIdentifier" class="input" placeholder="Enter Phone Number or Email">
+            <input type="password" id="authPin" class="input" placeholder="4-Digit Security PIN" maxlength="4">
+            <input type="text" id="authName" class="input" placeholder="Your Name (Optional for Register)">
+            <input type="text" id="authRefer" class="input" placeholder="Referral Code (Optional)">
+            <button class="btn" onclick="authenticateUser()" style="margin-top: 10px;">Continue / Login</button>
+        </div>
+
+        <!-- MAIN DASHBOARD -->
+        <div id="mainDashboard" class="hidden">
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterMatches('ALL')">ALL</button>
+                <button class="filter-btn" onclick="filterMatches('SOLO')">SOLO</button>
+                <button class="filter-btn" onclick="filterMatches('DUO')">DUO</button>
+                <button class="filter-btn" onclick="filterMatches('SQUAD')">SQUAD</button>
+                <button class="filter-btn" onclick="filterMatches('FREE')">FREE</button>
+            </div>
+
+            <div id="matchesContainer"></div>
+
+            <hr style="border-color: #28303d; margin: 20px 0;">
+            <div class="card">
+                <h3 style="margin-top: 0;">💬 Need Help? Create Support Ticket</h3>
+                <select id="ticketCategory" class="input">
+                    <option value="PAYMENT">Payment Issue</option>
+                    <option value="ROOM">Room ID / Pass Problem</option>
+                    <option value="OTHERS">Other Query</option>
+                </select>
+                <textarea id="ticketMessage" class="input" placeholder="Describe your issue..." style="height: 60px;"></textarea>
+                <button class="btn" onclick="submitTicket()">Submit Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOOKING MODAL -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--primary);">Join Tournament</h3>
+            <p id="modalMatchInfo" style="font-size: 14px; color: #ccc;"></p>
+            <input type="text" id="inGameName" class="input" placeholder="In-Game Name (IGN)">
+            <input type="text" id="inGameUid" class="input" placeholder="Game UID">
+            <div id="paymentOptions">
+                <div class="qr-box">
+                    <img id="upiQr" src="" width="150" alt="UPI QR">
+                </div>
+                <input type="text" id="utrInput" class="input" placeholder="Enter 12-Digit UTR Number" maxlength="12">
+            </div>
+            <button class="btn" style="margin-top: 10px;" onclick="confirmBooking()">Confirm Slot</button>
+            <button class="btn" style="background:#333; color:#fff; margin-top:5px;" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:3000/api";
+        let currentUser = null;
+        let allMatches = [];
+        let selectedMatch = null;
+        let appApkUrl = "";
+
+        async function authenticateUser() {
+            const identifier = document.getElementById('authIdentifier').value;
+            const pin = document.getElementById('authPin').value;
+            const name = document.getElementById('authName').value;
+            const referredBy = document.getElementById('authRefer').value;
+
+            if(!identifier || !pin) {
+                alert("Please enter Phone/Email and 4-Digit PIN!");
+                return;
+            }
+
+            const res = await fetch(`${API_URL}/user/auth`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier, pin, name, referredBy })
+            });
+            const data = await res.json();
+            if (data.success) {
+                currentUser = data.user;
+                if (data.configs && data.configs.appDownloadUrl) {
+                    appApkUrl = data.configs.appDownloadUrl;
+                    document.getElementById('appDownloadBanner').classList.remove('hidden');
+                }
+                document.getElementById('authBox').classList.add('hidden');
+                document.getElementById('mainDashboard').classList.remove('hidden');
+                document.getElementById('walletDisplay').innerText = `Balance: ₹${currentUser.walletBalance}`;
+                loadTournaments();
+            } else { alert(data.message); }
+        }
+
+        async function loadTournaments() {
+            const res = await fetch(`${API_URL}/tournaments`);
+            const data = await res.json();
+            allMatches = data.tournaments;
+            renderMatches(allMatches);
+        }
+
+        function renderMatches(matches) {
+            const container = document.getElementById('matchesContainer');
+            container.innerHTML = "";
+            if(matches.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:#777;">No matches available right now.</p>`;
+                return;
+            }
+            matches.forEach(m => {
+                container.innerHTML += `
+                    <div class="card">
+                        <img src="${m.bannerUrl}" style="width:100%; border-radius:5px; height:120px; object-fit:cover;">
+                        <h3 style="margin: 10px 0 5px 0;">${m.gameName} <span style="font-size:12px; color:var(--primary); background:#222; padding:2px 6px; border-radius:4px;">${m.matchMode}</span></h3>
+                        <p style="margin: 5px 0; font-size:13px; color:#aaa;">📅 ${m.matchDate} at ${m.matchTime} | Fee: ₹${m.entryFee}</p>
+                        <p style="margin: 5px 0 12px 0; font-size:13px; color:var(--gold);">🏆 Rank #1 - ₹${m.rank1Prize} | Per Kill - ₹${m.perKillPrize}</p>
+                        <button class="btn" onclick="openBooking('${m.id}')">Join Match</button>
+                    </div>
+                `;
+            });
+        }
+
+        function filterMatches(mode) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            if (mode === 'ALL') renderMatches(allMatches);
+            else if (mode === 'FREE') renderMatches(allMatches.filter(m => m.entryFee === 0));
+            else renderMatches(allMatches.filter(m => m.matchMode === mode));
+        }
+
+        function openBooking(matchId) {
+            selectedMatch = allMatches.find(m => m.id === matchId);
+            document.getElementById('modalMatchInfo').innerText = `${selectedMatch.gameName} - Entry Fee: ₹${selectedMatch.entryFee}`;
+            const qrImg = document.getElementById('upiQr');
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${selectedMatch.upiId}&pn=KDSEsports`;
+            document.getElementById('bookingModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('bookingModal').style.display = 'none'; }
+
+        async function confirmBooking() {
+            const username = document.getElementById('inGameName').value;
+            const gameId = document.getElementById('inGameUid').value;
+            const utr = document.getElementById('utrInput').value;
+
+            const res = await fetch(`${API_URL}/tournaments/book`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tournamentId: selectedMatch.id, identifier: currentUser.identifier, username, gameId, utr })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (data.success) { closeModal(); loadTournaments(); }
+        }
+
+        async function submitTicket() {
+            const category = document.getElementById('ticketCategory').value;
+            const message = document.getElementById('ticketMessage').value;
+            const res = await fetch(`${API_URL}/user/support-ticket`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier: currentUser.identifier, category, message })
+            });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        function downloadApp() { if(appApkUrl) window.open(appApkUrl, '_blank'); }
+    </script>
+</body>
+</html>
