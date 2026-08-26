@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "Complete Backend Engine-server.js",
   "scripts": {
-    "start": "node \"Complete Backend Engine-server.js\"
+    "start": "node \"Complete Backend Engine-server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
