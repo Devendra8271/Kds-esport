@@ -362,9 +362,6 @@ app.post('/api/admin/system-control', async (req, res) => {
 });
 const path = require('path');
 
-// Serve static directory
-app.use(express.static(__dirname));
-
 // Player App Route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'Complete Player Web Application.html'));
@@ -372,6 +369,8 @@ app.get('/', (req, res) => {
 
 // Admin Panel Route
 app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Complete Master Admin Dashboard.html'));
+});
     res.sendFile(path.join(__dirname, 'Complete Master Admin Dashboard.html'));
 });
 app.listen(process.env.PORT || 3000, () => console.log("Server Active on Port 3000"));
