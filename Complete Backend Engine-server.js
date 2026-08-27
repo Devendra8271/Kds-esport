@@ -360,5 +360,16 @@ app.post('/api/admin/system-control', async (req, res) => {
         res.status(400).json({ success: false, message: "Invalid Action Code" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
+// Serve static HTML files
+app.use(express.static(__dirname));
 
+// Player App Route
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/Complete Player Web Application.html');
+});
+
+// Admin Panel Route
+app.get('/admin', (req, res) => {
+    res.sendFile(__dirname + '/Complete Master Admin Dashboard.html');
+});
 app.listen(process.env.PORT || 3000, () => console.log("Server Active on Port 3000"));
