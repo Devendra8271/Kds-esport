@@ -360,7 +360,7 @@ app.post('/api/admin/system-control', async (req, res) => {
         res.status(400).json({ success: false, message: "Invalid Action Code" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
-// Serve static HTML files
+// Serve Static Files
 app.use(express.static(__dirname));
 
 // Player App Route
