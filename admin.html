@@ -17,10 +17,13 @@
 <body>
     <h1 style="color: #00ff88; text-align: center;">⚡ KDS E-sport Admin Panel</h1>
 
-    <div class="card">
-        <h3>🔑 Admin Authentication</h3>
-        <input type="password" id="adminSecret" class="input" placeholder="Enter Admin Secret Key">
-    </div>
+   <div class="card" id="loginCard">
+    <h3>🔒 Admin Authentication</h3>
+    <input type="password" id="adminSecret" class="input" placeholder="Enter Admin Secret Key">
+    <button class="btn" onclick="loginAdmin()" style="margin-top: 10px;">Login Panel</button>
+</div>
+
+<div id="adminContent" style="display: none;">
 
     <div class="card">
         <h3>📲 APK Download Link Update</h3>
@@ -139,6 +142,17 @@
                 dlAnchorElem.click();
             }
         }
+                </div>
+        function loginAdmin() {
+    const key = document.getElementById('adminSecret').value;
+    if (key === 'dev8271@') {
+        document.getElementById('adminContent').style.display = 'block';
+        document.getElementById('loginCard').style.display = 'none';
+        alert('Access Granted!');
+    } else {
+        alert('Wrong Secret Key!');
+    }
+}
     </script>
 </body>
 </html>
