@@ -133,36 +133,71 @@
         let selectedMatch = null;
         let appApkUrl = "";
 
-        async function authenticateUser() {
-            const identifier = document.getElementById('authIdentifier').value;
-            const pin = document.getElementById('authPin').value;
-            const name = document.getElementById('authName').value;
-            const referredBy = document.getElementById('authRefer').value;
+       async function handleLogin() {
+    const identifier = document.getElementById('loginIdentifier').value;
+    const password = document.getElementById('loginPassword').value;
 
-            if(!identifier || !pin) {
-                alert("Please enter Phone/Email and 4-Digit PIN!");
-                return;
-            }
+    if (!identifier || !password) {
+        alert('Please fill in all login fields!');
+        return;
+    }
 
-            const res = await fetch(`${API_URL}/user/auth`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier, pin, name, referredBy })
-            });
-            const data = await res.json();
-            if (data.success) {
-                currentUser = data.user;
-                if (data.configs && data.configs.appDownloadUrl) {
-                    appApkUrl = data.configs.appDownloadUrl;
-                    document.getElementById('appDownloadBanner').classList.remove('hidden');
-                }
-                document.getElementById('authBox').classList.add('hidden');
-                document.getElementById('mainDashboard').classList.remove('hidden');
-                document.getElementById('walletDisplay').innerText = `Balance: ₹${currentUser.walletBalance}`;
-                loadTournaments();
-            } else { alert(data.message); }
+    try {
+        const res = await fetch(${API_URL}/player/login, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, password })
+        });
+        const result = await res.json();
+        
+        if (res.ok) {
+            alert('Login Successful!');
+            document.getElementById('authCard').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'block';
+        } else {
+            alert(result.message || 'Login Failed!');
         }
+    } catch (err) {
+        alert('Server Error during login!');
+    }
+}
 
+async function handleRegister() {
+    const name = document.getElementById('regName').value;
+    const email = document.getElementById('regEmail').value;
+    const mobile = document.getElementById('regMobile').value;
+    const dob = document.getElementById('regDob').value;
+    const gender = document.getElementById('regGender').value;
+    const password = document.getElementById('regPassword').value;
+    const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+    if (!name || !email || !mobile || !dob || !gender || !password || !confirmPassword) {
+        alert('All fields are required!');
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        alert('Passwords do not match!');
+        return;
+    }
+
+    try {
+        const res = await fetch(${API_URL}/player/register, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, mobile, dob, gender, password })
+        });
+        const result = await res.json();
+
+        if (res.ok) {
+            alert('Registration Successful! Please login now.');
+            switchTab('login');
+        } else {
+            alert(result.message || 'Registration Failed!');
+        }
+    } catch (err) {
+        alert('Server Error during registration!');
+    }
         async function loadTournaments() {
             const res = await fetch(`${API_URL}/tournaments`);
             const data = await res.json();
