@@ -47,14 +47,40 @@
         </div>
 
         <!-- AUTH BOX -->
-        <div id="authBox" class="card">
-            <h3 style="margin-top: 0; color: var(--primary);">🔐 Dual Login / Register</h3>
-            <input type="text" id="authIdentifier" class="input" placeholder="Enter Phone Number or Email">
-            <input type="password" id="authPin" class="input" placeholder="4-Digit Security PIN" maxlength="4">
-            <input type="text" id="authName" class="input" placeholder="Your Name (Optional for Register)">
-            <input type="text" id="authRefer" class="input" placeholder="Referral Code (Optional)">
-            <button class="btn" onclick="authenticateUser()" style="margin-top: 10px;">Continue / Login</button>
-        </div>
+       <div id="authCard" class="card">
+    <!-- Tab Switch Buttons -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="btn" id="loginTabBtn" onclick="switchTab('login')" style="flex: 1; background: #00ff88; color: #000;">Login</button>
+        <button class="btn" id="regTabBtn" onclick="switchTab('register')" style="flex: 1; background: #333; color: #fff;">Register</button>
+    </div>
+
+    <!-- 1. Login Form -->
+    <div id="loginForm">
+        <h3 style="margin-top: 0; color: var(--primary);">🔐 Player Login</h3>
+        <input type="text" id="loginIdentifier" class="input" placeholder="Mobile Number or Email">
+        <input type="password" id="loginPassword" class="input" placeholder="Password">
+        <button class="btn" onclick="handleLogin()" style="width: 100%; margin-top: 10px;">Login</button>
+        <p style="margin-top: 10px; text-align: center;"><a href="#" onclick="forgotPassword()" style="color: #00ff88; text-decoration: none;">Forgot Password?</a></p>
+    </div>
+
+    <!-- 2. Registration Form -->
+    <div id="registerForm" style="display: none;">
+        <h3 style="margin-top: 0; color: var(--primary);">📝 New Player Registration</h3>
+        <input type="text" id="regName" class="input" placeholder="Full Name">
+        <input type="email" id="regEmail" class="input" placeholder="Email Address">
+        <input type="text" id="regMobile" class="input" placeholder="Mobile Number">
+        <input type="date" id="regDob" class="input" placeholder="Date of Birth">
+        <select id="regGender" class="input">
+            <option value="">Select Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+        </select>
+        <input type="password" id="regPassword" class="input" placeholder="Create Password">
+        <input type="password" id="regConfirmPassword" class="input" placeholder="Confirm Password">
+        <button class="btn" onclick="handleRegister()" style="width: 100%; margin-top: 10px;">Register Now</button>
+    </div>
+</div>
 
         <!-- MAIN DASHBOARD -->
         <div id="mainDashboard" class="hidden">
@@ -210,6 +236,101 @@
         }
 
         function downloadApp() { if(appApkUrl) window.open(appApkUrl, '_blank'); }
+        // Tab Switching Logic
+function switchTab(tab) {
+    if (tab === 'login') {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginTabBtn').style.background = '#00ff88';
+        document.getElementById('loginTabBtn').style.color = '#000';
+        document.getElementById('regTabBtn').style.background = '#333';
+        document.getElementById('regTabBtn').style.color = '#fff';
+    } else {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+        document.getElementById('regTabBtn').style.background = '#00ff88';
+        document.getElementById('regTabBtn').style.color = '#000';
+        document.getElementById('loginTabBtn').style.background = '#333';
+        document.getElementById('loginTabBtn').style.color = '#fff';
+    }
+}
+
+// Player Login Function
+async function handleLogin() {
+    const identifier = document.getElementById('loginIdentifier').value;
+    const password = document.getElementById('loginPassword').value;
+
+    if (!identifier || !password) {
+        alert('Please fill in all login fields!');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/player/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, password })
+        });
+        const result = await res.json();
+        
+        if (res.ok) {
+            alert('Login Successful!');
+            document.getElementById('authCard').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'block';
+        } else {
+            alert(result.message || 'Login Failed!');
+        }
+    } catch (err) {
+        alert('Server Error during login!');
+    }
+}
+
+// Player Registration Function
+async function handleRegister() {
+    const name = document.getElementById('regName').value;
+    const email = document.getElementById('regEmail').value;
+    const mobile = document.getElementById('regMobile').value;
+    const dob = document.getElementById('regDob').value;
+    const gender = document.getElementById('regGender').value;
+    const password = document.getElementById('regPassword').value;
+    const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+    if (!name || !email || !mobile || !dob || !gender || !password || !confirmPassword) {
+        alert('All fields are required!');
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        alert('Passwords do not match!');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/player/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, mobile, dob, gender, password })
+        });
+        const result = await res.json();
+
+        if (res.ok) {
+            alert('Registration Successful! Please login now.');
+            switchTab('login');
+        } else {
+            alert(result.message || 'Registration Failed!');
+        }
+    } catch (err) {
+        alert('Server Error during registration!');
+    }
+}
+
+// Forgot Password
+function forgotPassword() {
+    const info = prompt('Enter your registered Email or Mobile Number:');
+    if (info) {
+        alert('Password reset link sent to ' + info);
+    }
+
     </script>
 </body>
 </html>
