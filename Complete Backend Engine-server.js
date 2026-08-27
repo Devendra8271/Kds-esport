@@ -365,12 +365,12 @@ const path = require('path');
 
 // Player App Route
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'Complete Player Web Application.html'));
+    res.sendFile('Complete Player Web Application.html', { root: __dirname });
 });
 
 // Admin Panel Route
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'Complete Master Admin Dashboard.html'));
+    res.sendFile('Complete Master Admin Dashboard.html', { root: __dirname });
 });
 
 app.listen(process.env.PORT || 3000, () => console.log("Server Active on Port 3000"));
