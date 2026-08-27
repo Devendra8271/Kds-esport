@@ -330,6 +330,22 @@ function forgotPassword() {
     if (info) {
         alert('Password reset link sent to ' + info);
     }
+function switchTab(tab) {
+    if (tab === 'login') {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginTabBtn').style.background = '#00ff88';
+        document.getElementById('loginTabBtn').style.color = '#000';
+        document.getElementById('regTabBtn').style.background = '#333';
+        document.getElementById('regTabBtn').style.color = '#fff';
+    } else {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+        document.getElementById('regTabBtn').style.background = '#00ff88';
+        document.getElementById('regTabBtn').style.color = '#000';
+        document.getElementById('loginTabBtn').style.background = '#333';
+        document.getElementById('loginTabBtn').style.color = '#fff';
+    }
 
     </script>
 </body>
