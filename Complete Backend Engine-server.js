@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(cors());
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "ADMIN1234";
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://itskdsdev_db_user:KdsEsports1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
