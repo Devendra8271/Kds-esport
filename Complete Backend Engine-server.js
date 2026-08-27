@@ -357,9 +357,10 @@ app.post('/api/admin/system-control', async (req, res) => {
             return res.json({ success: true, message: "Room Credentials Pushed to Joined Players!" });
         }
 
-        res.status(400).json({ success: false, message: "Invalid Action Code" });
+       res.status(400).json({ success: false, message: "Invalid Action Code" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
+
 const path = require('path');
 
 // Player App Route
@@ -371,6 +372,5 @@ app.get('/', (req, res) => {
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'Complete Master Admin Dashboard.html'));
 });
-    res.sendFile(path.join(__dirname, 'Complete Master Admin Dashboard.html'));
-});
+
 app.listen(process.env.PORT || 3000, () => console.log("Server Active on Port 3000"));
