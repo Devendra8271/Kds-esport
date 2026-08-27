@@ -360,17 +360,19 @@ app.post('/api/admin/system-control', async (req, res) => {
        res.status(400).json({ success: false, message: "Invalid Action Code" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
-
 const path = require('path');
+
+// Static files serve karne ke liye
+app.use(express.static(__dirname));
 
 // Player App Route
 app.get('/', (req, res) => {
-    res.sendFile('Complete Player Web Application.html', { root: __dirname });
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Admin Panel Route
 app.get('/admin', (req, res) => {
-    res.sendFile('Complete Master Admin Dashboard.html', { root: __dirname });
+    res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 app.listen(process.env.PORT || 3000, () => console.log("Server Active on Port 3000"));
