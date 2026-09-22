@@ -7,223 +7,178 @@ const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
+
 app.use(express.json());
 app.use(cors());
 app.use(express.static(__dirname));
 
+// Configuration Constants
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
+const ADMIN_EMAIL = "its.kds.dev@gmail.com";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwk1G8-N-XBpyq59ZRoMZ5S1CcPblaErbglJLxe7SG_0TFdQlZYoLETuOR_j1Gp08gr/exec";
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
+// Gmail Transporter
 const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: 'its.kds.dev@gmail.com', pass: 'ecfz ymiu gcoj lsis' }
+    auth: {
+        user: process.env.EMAIL_USER || 'its.kds.dev@gmail.com',
+        pass: process.env.EMAIL_PASS || 'ecfz ymiu gcoj lsis'
+    }
 });
 
+// Mongo Connection
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
-  .catch(err => console.error("Database Connection Error:", err));
+  .catch(err => console.error("DB Error:", err));
 
-const SystemConfigSchema = new mongoose.Schema({
-    minWithdrawalLimit: { type: Number, default: 50 },
-    appDownloadUrl: { type: String, default: "" }
-});
-const SystemConfig = mongoose.model('SystemConfig', SystemConfigSchema);
-
+// Schemas & Models
 const UserSchema = new mongoose.Schema({
     identifier: { type: String, required: true, unique: true },
-    email: { type: String, default: "" },
-    mobile: { type: String, default: "" },
-    name: { type: String, default: "Player" },
-    dob: { type: String, default: "2000-01-01" },
+    email: { type: String, required: true },
+    mobile: { type: String, required: true },
+    name: { type: String, required: true },
+    dob: { type: String, required: true },
     gender: { type: String, default: "Male" },
-    password: { type: String, default: "" },
-    profilePic: { type: String, default: "https://api.dicebear.com/7.x/bottts/svg?seed=Gamer1" },
+    password: { type: String, required: true },
     walletBalance: { type: Number, default: 0 },
-    referralCode: { type: String, default: () => "REF" + Math.floor(100000 + Math.random() * 900000) },
+    isBanned: { type: Boolean, default: false },
+    referralCode: { type: String, required: true },
+    referredBy: { type: String, default: null },
     resetToken: { type: String, default: null },
     resetTokenExpires: { type: Date, default: null },
-    isBanned: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
 const User = mongoose.model('User', UserSchema);
 
-const TournamentSchema = new mongoose.Schema({
-    id: { type: String, required: true, unique: true },
-    gameName: { type: String, required: true },
-    matchMode: { type: String, default: "SOLO" },
-    status: { type: String, default: "UPCOMING" },
-    matchDate: { type: String, required: true },
-    matchTime: { type: String, required: true },
-    bannerUrl: { type: String, required: true },
-    entryFee: { type: Number, required: true },
-    totalSlots: { type: Number, default: 100 },
-    upiId: { type: String, required: true },
-    perKillPrize: { type: Number, default: 0 },
-    rank1Prize: { type: Number, default: 0 },
-    roomId: { type: String, default: "WAITING" },
-    roomPass: { type: String, default: "WAITING" },
-    registeredPlayers: [{ identifier: String, username: String, gameId: String, utr: String }]
-});
-const Tournament = mongoose.model('Tournament', TournamentSchema);
-const UsedUtr = mongoose.model('UsedUtr', new mongoose.Schema({ utr: String, identifier: String }));
-
-async function getConfigs() {
-    let config = await SystemConfig.findOne();
-    if (!config) config = await SystemConfig.create({});
-    return config;
+// Age Checker Helper
+function calculateAge(dobString) {
+    const today = new Date();
+    const birthDate = new Date(dobString);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+    return age;
 }
 
+// 1. REGISTER PLAYER
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referredBy } = req.body;
-        const cleanEmail = email.trim().toLowerCase();
-        if (await User.findOne({ $or: [{ email: cleanEmail }, { mobile: mobile.trim() }] })) {
-            return res.status(400).json({ success: false, message: "User already exists with this Email or Mobile!" });
+        if (!name || !email || !mobile || !dob || !password) {
+            return res.status(400).json({ success: false, message: "Sabhi details bharna zaroori hai!" });
         }
+
+        if (calculateAge(dob) < 10) {
+            return res.status(400).json({ success: false, message: "Minimum age requirement is 10 years!" });
+        }
+
+        const cleanEmail = email.trim().toLowerCase();
+        const cleanMobile = mobile.trim();
+
+        const existingUser = await User.findOne({ $or: [{ email: cleanEmail }, { mobile: cleanMobile }] });
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "Email ya Mobile number pehle se registered hai!" });
+        }
+
+        const referCode = "REF" + Math.floor(100000 + Math.random() * 900000);
         const newUser = new User({
-            identifier: cleanEmail, email: cleanEmail, mobile: mobile.trim(), name, dob, gender, password,
-            referredBy: (referredBy && referredBy.trim() !== "") ? referredBy.trim() : null
+            identifier: cleanEmail,
+            email: cleanEmail,
+            mobile: cleanMobile,
+            name,
+            dob,
+            gender: gender || "Male",
+            password,
+            referralCode: referCode,
+            referredBy: referredBy ? referredBy.trim() : null
         });
+
         await newUser.save();
-        res.json({ success: true, message: "Registration Successful!" });
+
+        // 1. Mail to Player
+        const playerMail = {
+            from: 'KDS E-sports <its.kds.dev@gmail.com>',
+            to: cleanEmail,
+            subject: '🎮 Registration Successful - KDS E-sport',
+            html: `<h3>Welcome ${name}!</h3><p>Aapka registration successfully ho gaya hai.</p><p><b>Referral Code:</b> ${referCode}</p>`
+        };
+
+        // 2. Mail to Admin
+        const adminMail = {
+            from: 'KDS Alert <its.kds.dev@gmail.com>',
+            to: ADMIN_EMAIL,
+            subject: '🔔 New Registration Alert',
+            html: `<h3>New Player Details</h3><p><b>Name:</b> ${name}</p><p><b>Email:</b> ${cleanEmail}</p><p><b>Mobile:</b> ${cleanMobile}</p>`
+        };
+
+        transporter.sendMail(playerMail);
+        transporter.sendMail(adminMail);
+
+        // Google Apps Script Sync
+        try {
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: "REGISTRATION", name, email: cleanEmail, mobile: cleanMobile, dob, gender, referralCode: referCode })
+            });
+        } catch (e) { console.error("Script Sync Error:", e.message); }
+
+        res.json({ success: true, message: "Registration successful! Emails sent." });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
+// 2. LOGIN (Email OR Mobile)
 app.post('/api/player/login', async (req, res) => {
     try {
         const { identifier, password } = req.body;
         const cleanInput = identifier.trim().toLowerCase();
-        const user = await User.findOne({ $or: [{ email: cleanInput }, { mobile: identifier.trim() }, { identifier: cleanInput }] });
-        if (!user || user.password !== password) return res.status(401).json({ success: false, message: "Invalid Mobile/Email or Password!" });
-        if (user.isBanned) return res.status(403).json({ success: false, message: "Your account has been banned!" });
-        res.json({ success: true, user, configs: await getConfigs() });
+
+        const user = await User.findOne({ $or: [{ email: cleanInput }, { mobile: cleanInput }] });
+        if (!user || user.password !== password) {
+            return res.status(401).json({ success: false, message: "Wrong Email/Mobile or Password!" });
+        }
+        if (user.isBanned) {
+            return res.status(403).json({ success: false, message: "Your account is banned." });
+        }
+
+        res.json({ success: true, user });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
+// 3. FORGOT PASSWORD (Reset Link to Email)
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
         const cleanInput = identifier.trim().toLowerCase();
-        const user = await User.findOne({ $or: [{ email: cleanInput }, { mobile: identifier.trim() }, { identifier: cleanInput }] });
-        if (!user) return res.status(404).json({ success: false, message: "User not found with this Email/Mobile!" });
+        const user = await User.findOne({ $or: [{ email: cleanInput }, { mobile: cleanInput }] });
 
-        const token = crypto.randomBytes(32).toString('hex');
+        if (!user) return res.status(404).json({ success: false, message: "Account not found!" });
+
+        const token = crypto.randomBytes(20).toString('hex');
         user.resetToken = token;
-        user.resetTokenExpires = Date.now() + 3600000;
-        await user.save({ validateBeforeSave: false });
+        user.resetTokenExpires = Date.now() + 15 * 60 * 1000;
+        await user.save();
 
-        // Reset link pointing to player page itself
-        const resetLink = `https://kds-esport.onrender.com/kds%20e-%20sport%20player.html?token=${token}&email=${encodeURIComponent(user.email)}`;
+        const resetLink = `${BASE_URL}/index.html?resetToken=${token}`;
 
-        transporter.sendMail({
-            from: 'KDS E-sports <its.kds.dev@gmail.com>',
+        const resetMail = {
+            from: 'KDS Support <its.kds.dev@gmail.com>',
             to: user.email,
             subject: '🔑 Password Reset Link',
-            html: `<div style="background:#121212; color:#fff; padding:20px;"><h3>Password Reset</h3><p>Click below to reset your password:</p><a href="${resetLink}" style="background:#00ff88; color:#000; padding:10px 15px; text-decoration:none; font-weight:bold;">Reset Password</a></div>`
-        }, (err) => {
-            if (err) return res.status(500).json({ success: false, message: "Failed to send email." });
-            res.json({ success: true, message: "Password reset link sent to your email!" });
+            html: `<p>Password reset karne ke liye niche link par click karein:</p><a href="${resetLink}">${resetLink}</a>`
+        };
+
+        transporter.sendMail(resetMail, (err) => {
+            if (err) return res.status(500).json({ success: false, message: "Mail send failed" });
+            res.json({ success: true, message: "Reset link emailed successfully!" });
         });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post('/api/player/reset-password-confirm', async (req, res) => {
-    try {
-        const { email, token, newPassword } = req.body;
-        const user = await User.findOne({ email: email.toLowerCase(), resetToken: token, resetTokenExpires: { $gt: Date.now() } });
-        if (!user) return res.status(400).json({ success: false, message: "Invalid or expired token!" });
+// Serve HTML pages
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
-        user.password = newPassword;
-        user.resetToken = null;
-        user.resetTokenExpires = null;
-        await user.save();
-        res.json({ success: true, message: "Password updated successfully!" });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.post('/api/player/update-profile', async (req, res) => {
-    try {
-        const { identifier, name, profilePic, mobile } = req.body;
-        const user = await User.findOne({ identifier: identifier.toLowerCase() });
-        if (!user) return res.status(404).json({ success: false, message: "User not found!" });
-        if (name) user.name = name;
-        if (profilePic) user.profilePic = profilePic;
-        if (mobile) user.mobile = mobile;
-        await user.save();
-        res.json({ success: true, message: "Profile Updated!", user });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.post('/api/player/add-money', async (req, res) => {
-    try {
-        const { identifier, amount, utr } = req.body;
-        if (!utr || utr.length !== 12) return res.status(400).json({ success: false, message: "Invalid 12-Digit UTR!" });
-        if (await UsedUtr.findOne({ utr })) return res.status(400).json({ success: false, message: "UTR already used!" });
-
-        const user = await User.findOne({ identifier: identifier.toLowerCase() });
-        await UsedUtr.create({ utr, identifier: user.identifier });
-        user.walletBalance += parseInt(amount);
-        await user.save();
-        res.json({ success: true, message: "Funds Added Successfully!", user });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.get('/api/tournaments', async (req, res) => {
-    res.json({ tournaments: await Tournament.find({}), configs: await getConfigs() });
-});
-
-app.post('/api/tournaments/book', async (req, res) => {
-    try {
-        const { tournamentId, identifier, username, gameId, utr, payViaWallet } = req.body;
-        const tournament = await Tournament.findOne({ id: tournamentId });
-        const user = await User.findOne({ identifier: identifier.toLowerCase() });
-
-        if (payViaWallet) {
-            if (user.walletBalance < tournament.entryFee) return res.status(400).json({ success: false, message: "Low wallet balance!" });
-            user.walletBalance -= tournament.entryFee;
-            tournament.registeredPlayers.push({ identifier: user.identifier, username, gameId, utr: "WALLET" });
-            await user.save(); await tournament.save();
-            return res.json({ success: true, message: "Booked via Wallet!", user });
-        }
-
-        if (!utr || utr.length !== 12) return res.status(400).json({ success: false, message: "Invalid UTR!" });
-        if (await UsedUtr.findOne({ utr })) return res.status(400).json({ success: false, message: "UTR already used!" });
-        await UsedUtr.create({ utr, identifier: user.identifier });
-        tournament.registeredPlayers.push({ identifier: user.identifier, username, gameId, utr });
-        await user.save(); await tournament.save();
-        res.json({ success: true, message: "Booked Successfully!", user });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.post('/api/admin/system-control', async (req, res) => {
-    try {
-        const { adminSecret, action, data } = req.body;
-        if (adminSecret !== ADMIN_SECRET) return res.status(401).json({ success: false, message: "Invalid Secret Key!" });
-
-        if (action === "ADD_TOURNAMENT") {
-            const count = await Tournament.countDocuments();
-            await new Tournament({
-                id: "T" + (count + 101), gameName: data.gameName, matchMode: data.matchMode || "SOLO",
-                matchDate: data.matchDate, matchTime: data.matchTime, bannerUrl: data.bannerUrl,
-                entryFee: parseInt(data.entryFee), upiId: data.upiId,
-                perKillPrize: parseInt(data.perKillPrize || 0), rank1Prize: parseInt(data.rank1Prize || 0)
-            }).save();
-            return res.json({ success: true, message: "Tournament Added!" });
-        }
-        if (action === "UPDATE_ROOM") {
-            await Tournament.updateOne({ id: data.tournamentId }, { $set: { roomId: data.roomId, roomPass: data.roomPass } });
-            return res.json({ success: true, message: "Room Updated!" });
-        }
-        if (action === "TOGGLE_USER_BAN") {
-            await User.updateOne({ $or: [{ email: data.playerIdentifier.toLowerCase() }, { mobile: data.playerIdentifier }] }, {$set: { isBanned: data.banStatus } });
-            return res.json({ success: true, message: "User status updated!" });
-        }
-        if (action === "KICK_PLAYER") {
-            await Tournament.updateOne({ id: data.tournamentId }, { $pull: { registeredPlayers: { identifier: data.playerIdentifier.toLowerCase() } } });
-            return res.json({ success: true, message: "Player removed from tournament!" });
-        }
-        res.status(400).json({ success: false, message: "Invalid Action" });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.listen(process.env.PORT || 3000, () => console.log("Server running on port 3000"));
+app.listen(process.env.PORT || 3000, () => console.log("Server Running on Port 3000"));
