@@ -1,13 +1,15 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
+const path = require('path');
+
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "ADMIN1234";
+const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 
 mongoose.connect(MONGO_URI)
@@ -34,7 +36,12 @@ const UserSchema = new mongoose.Schema({
     identifier: { type: String, required: true, unique: true },
     loginType: { type: String, default: "PHONE" },
     name: { type: String, required: true },
-    pin: { type: String, required: true },
+    email: { type: String },
+    mobile: { type: String },
+    dob: { type: String },
+    gender: { type: String },
+    password: { type: String },
+    pin: { type: String, default: "1234" },
     walletBalance: { type: Number, default: 0 },
     weeklyFreeMatchesPlayed: { type: Number, default: 0 },
     weeklyFreeWins: { type: Number, default: 0 },
@@ -102,6 +109,84 @@ cron.schedule('0 0 * * 1', async () => {
 });
 
 // --- API ROUTES ---
+
+// PLAYER REGISTER
+app.post('/api/player/register', async (req, res) => {
+    try {
+        const { name, email, mobile, dob, gender, password } = req.body;
+        if (!name || !email || !mobile || !password) {
+            return res.status(400).json({ success: false, message: "All required fields must be provided!" });
+        }
+
+        const cleanMobile = mobile.trim();
+        const cleanEmail = email.trim().toLowerCase();
+
+        let existingUser = await User.findOne({ $or: [{ identifier: cleanMobile }, { identifier: cleanEmail }, { mobile: cleanMobile }, { email: cleanEmail }] });
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "User already exists with this email or mobile!" });
+        }
+
+        const referCode = "REF" + Math.floor(100000 + Math.random() * 900000);
+        const newUser = new User({
+            identifier: cleanMobile,
+            loginType: "PHONE",
+            name,
+            email: cleanEmail,
+            mobile: cleanMobile,
+            dob,
+            gender,
+            password,
+            pin: "1234",
+            referralCode: referCode
+        });
+
+        await newUser.save();
+        res.json({ success: true, message: "Registration Successful!" });
+    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+// PLAYER LOGIN
+app.post('/api/player/login', async (req, res) => {
+    try {
+        const { identifier, password } = req.body;
+        if (!identifier || !password) {
+            return res.status(400).json({ success: false, message: "Mobile/Email and Password are required!" });
+        }
+
+        const cleanId = identifier.trim().toLowerCase();
+        const user = await User.findOne({
+            $or: [{ identifier: cleanId }, { email: cleanId }, { mobile: cleanId }]
+        });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found! Please register." });
+        }
+
+        if (user.password !== password) {
+            return res.status(401).json({ success: false, message: "Incorrect Password!" });
+        }
+
+        const config = await getConfigs();
+        res.json({ success: true, message: "Login Successful!", user, configs: config });
+    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+// FORGOT PASSWORD
+app.post('/api/player/forgot-password', async (req, res) => {
+    try {
+        const { identifier } = req.body;
+        if (!identifier) return res.status(400).json({ success: false, message: "Please provide identifier!" });
+        
+        const cleanId = identifier.trim().toLowerCase();
+        const user = await User.findOne({
+            $or: [{ identifier: cleanId }, { email: cleanId }, { mobile: cleanId }]
+        });
+
+        if (!user) return res.status(404).json({ success: false, message: "Account not found!" });
+
+        res.json({ success: true, message: `Reset link / info sent to registered details of ${user.name}` });
+    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
 
 app.post('/api/webhook/sms-listener', async (req, res) => {
     try {
@@ -174,7 +259,7 @@ app.post('/api/tournaments/book', async (req, res) => {
     try {
         const { tournamentId, identifier, username, gameId, utr, payViaWallet, useVipPass } = req.body;
         const tournament = await Tournament.findOne({ id: tournamentId });
-        const user = await User.findOne({ identifier: identifier.toLowerCase() });
+        const user = await User.findOne({ identifier: identifier ? identifier.toLowerCase() : '' });
 
         if (!tournament || !user) return res.status(400).json({ success: false, message: "Invalid Request." });
         if (tournament.registeredPlayers.find(p => p.identifier === user.identifier)) {
@@ -228,7 +313,7 @@ app.post('/api/tournaments/book', async (req, res) => {
 app.post('/api/user/support-ticket', async (req, res) => {
     try {
         const { identifier, category, message, attachmentUrl } = req.body;
-        const ticket = new SupportTicket({ ticketId: "TCK_" + Date.now(), identifier: identifier.toLowerCase(), category, message, attachmentUrl });
+        const ticket = new SupportTicket({ ticketId: "TCK_" + Date.now(), identifier: identifier ? identifier.toLowerCase() : 'guest', category, message, attachmentUrl });
         await ticket.save();
         res.json({ success: true, message: "Ticket Submitted to Support Team!" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
@@ -277,7 +362,7 @@ app.post('/api/user/withdraw', async (req, res) => {
 app.post('/api/admin/system-control', async (req, res) => {
     try {
         const { adminSecret, action, data } = req.body;
-        if (adminSecret !== "dev8271@") return res.status(401).json({ success: false, message: "Invalid Admin Secret Key!" });
+        if (adminSecret !== ADMIN_SECRET) return res.status(401).json({ success: false, message: "Invalid Admin Secret Key!" });
 
         let config = await getConfigs();
 
@@ -350,8 +435,7 @@ app.post('/api/admin/system-control', async (req, res) => {
             const t = await Tournament.findOne({ id: data.tournamentId });
             if (t) {
                 const identifiers = t.registeredPlayers.map(p => p.identifier);
-                await User.updateMany({ identifier: { $in: identifiers } }, {
-                    $push: { notifications: { title: "🎮 Room Credentials Released!", message: `Match ${t.id}: Room ID: ${data.roomId} | Pass: ${data.roomPass}` } }
+                await User.updateMany({ identifier: { $in: identifiers } }, {$push: { notifications: { title: "🎮 Room Credentials Released!", message: `Match ${t.id}: Room ID: ${data.roomId} | Pass: ${data.roomPass}` } }
                 });
             }
             return res.json({ success: true, message: "Room Credentials Pushed to Joined Players!" });
@@ -360,14 +444,13 @@ app.post('/api/admin/system-control', async (req, res) => {
        res.status(400).json({ success: false, message: "Invalid Action Code" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
-const path = require('path');
 
-// Static files serve karne ke liye
+// Static files serving
 app.use(express.static(__dirname));
 
 // Player App Route
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'players.html'));
 });
 
 // Admin Panel Route
