@@ -13,12 +13,12 @@ app.use(cors());
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 
-// Nodemailer Transporter Setup for its.kds.dev@gmail.com
+// Nodemailer Transporter - Email Configuration with updated Password
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER || 'its.kds.dev@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your_app_password_here' // Replace with Gmail App Password
+        pass: process.env.EMAIL_PASS || 'Dev8271@' // Updated Password
     }
 });
 
@@ -26,7 +26,7 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
   .catch(err => console.error("Database Connection Error:", err));
 
-// --- SCHEMAS & MODELS ---
+// --- DATABASE SCHEMAS ---
 
 const SystemConfigSchema = new mongoose.Schema({
     minMatchesRequired: { type: Number, default: 10 },
@@ -106,7 +106,6 @@ const SupportTicket = mongoose.model('SupportTicket', new mongoose.Schema({
 
 const UsedUtr = mongoose.model('UsedUtr', new mongoose.Schema({ utr: { type: String, required: true, unique: true }, identifier: String, createdAt: { type: Date, default: Date.now } }));
 const SmsUtr = mongoose.model('SmsUtr', new mongoose.Schema({ utr: { type: String, required: true, unique: true }, createdAt: { type: Date, default: Date.now } }));
-const Withdrawal = mongoose.model('Withdrawal', new mongoose.Schema({ id: String, identifier: String, amount: Number, upiId: String, status: { type: String, default: "PENDING" }, timestamp: { type: Date, default: Date.now } }));
 
 async function getConfigs() {
     let config = await SystemConfig.findOne();
@@ -120,12 +119,12 @@ cron.schedule('0 0 * * 1', async () => {
 
 // --- API ROUTES ---
 
-// PLAYER REGISTER WITH REFERRAL CODE
+// REGISTRATION API (With Referral System & Native DOB)
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referralCode } = req.body;
         if (!name || !email || !mobile || !password) {
-            return res.status(400).json({ success: false, message: "All required fields must be provided!" });
+            return res.status(400).json({ success: false, message: "Required fields missing!" });
         }
 
         const cleanMobile = mobile.trim();
@@ -133,7 +132,7 @@ app.post('/api/player/register', async (req, res) => {
 
         let existingUser = await User.findOne({ $or: [{ identifier: cleanMobile }, { identifier: cleanEmail }, { mobile: cleanMobile }, { email: cleanEmail }] });
         if (existingUser) {
-            return res.status(400).json({ success: false, message: "User already exists with this email or mobile!" });
+            return res.status(400).json({ success: false, message: "User already registered with this Email/Mobile!" });
         }
 
         const selfReferCode = "REF" + Math.floor(100000 + Math.random() * 900000);
@@ -162,16 +161,16 @@ app.post('/api/player/register', async (req, res) => {
         }
 
         await newUser.save();
-        res.json({ success: true, message: "Registration Successful!" });
+        res.json({ success: true, message: "Registration Successful! Please Login." });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// PLAYER LOGIN
+// LOGIN API
 app.post('/api/player/login', async (req, res) => {
     try {
         const { identifier, password } = req.body;
         if (!identifier || !password) {
-            return res.status(400).json({ success: false, message: "Mobile/Email and Password are required!" });
+            return res.status(400).json({ success: false, message: "Mobile/Email and Password required!" });
         }
 
         const cleanId = identifier.trim().toLowerCase();
@@ -180,7 +179,7 @@ app.post('/api/player/login', async (req, res) => {
         });
 
         if (!user) {
-            return res.status(404).json({ success: false, message: "User not found! Please register." });
+            return res.status(404).json({ success: false, message: "User not found! Please Register." });
         }
 
         if (user.password !== password) {
@@ -192,65 +191,47 @@ app.post('/api/player/login', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD VIA GMAIL
+// FORGOT PASSWORD VIA GMAIL (its.kds.dev@gmail.com)
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
-        if (!identifier) return res.status(400).json({ success: false, message: "Please provide your registered Email or Mobile!" });
-        
+        if (!identifier) return res.status(400).json({ success: false, message: "Enter Email or Mobile!" });
+
         const cleanId = identifier.trim().toLowerCase();
         const user = await User.findOne({
             $or: [{ identifier: cleanId }, { email: cleanId }, { mobile: cleanId }]
         });
 
         if (!user || !user.email) {
-            return res.status(404).json({ success: false, message: "No user account or email found!" });
+            return res.status(404).json({ success: false, message: "No registered account or email found!" });
         }
 
         const mailOptions = {
             from: '"KDS E-sport Hub" <its.kds.dev@gmail.com>',
             to: user.email,
-            subject: 'KDS E-sport - Account Password Recovery',
+            subject: 'KDS E-sport - Account Credentials Recovery',
             html: `
                 <div style="font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 20px; border-radius: 10px;">
                     <h2 style="color: #00ff88;">KDS E-sport Gaming Hub</h2>
                     <p>Hello <b>${user.name}</b>,</p>
-                    <p>You requested your account password details:</p>
+                    <p>Here are your requested login details:</p>
                     <div style="background: #1e1e1e; padding: 15px; border: 1px solid #00ff88; border-radius: 5px; margin: 10px 0;">
-                        <p style="margin: 5px 0;"><b>User ID:</b> ${user.identifier}</p>
+                        <p style="margin: 5px 0;"><b>Login ID:</b> ${user.identifier}</p>
                         <p style="margin: 5px 0;"><b>Password:</b> ${user.password}</p>
                     </div>
-                    <p>Please keep this information secure and do not share it with anyone.</p>
                 </div>
             `
         };
 
         await transporter.sendMail(mailOptions);
-        res.json({ success: true, message: `Password details sent successfully to ${user.email}!` });
-    } catch (err) { 
-        console.error(err);
-        res.status(500).json({ success: false, message: "Failed to send email. Check SMTP settings." }); 
+        res.json({ success: true, message: `Password details sent to ${user.email}!` });
+    } catch (err) {
+        console.error("Nodemailer Error:", err);
+        res.status(500).json({ success: false, message: "Failed to send email. Check credentials or Gmail App Password setup." });
     }
 });
 
-app.post('/api/webhook/sms-listener', async (req, res) => {
-    try {
-        const { smsText } = req.body;
-        if (!smsText) return res.status(400).json({ success: false, message: "No SMS content provided!" });
-
-        const utrMatch = smsText.match(/\b\d{12}\b/);
-        if (utrMatch) {
-            const extractedUtr = utrMatch[0];
-            const existingUtr = await SmsUtr.findOne({ utr: extractedUtr });
-            if (!existingUtr) {
-                await SmsUtr.create({ utr: extractedUtr });
-            }
-            return res.json({ success: true, message: "UTR Extracted and Logged!", utr: extractedUtr });
-        }
-        res.status(400).json({ success: false, message: "No 12-Digit UTR found in SMS." });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
+// TOURNAMENTS
 app.get('/api/tournaments', async (req, res) => {
     try {
         const tournaments = await Tournament.find({});
@@ -261,7 +242,7 @@ app.get('/api/tournaments', async (req, res) => {
 
 app.post('/api/tournaments/book', async (req, res) => {
     try {
-        const { tournamentId, identifier, username, gameId, utr, payViaWallet, useVipPass } = req.body;
+        const { tournamentId, identifier, username, gameId, utr, payViaWallet } = req.body;
         const tournament = await Tournament.findOne({ id: tournamentId });
         const user = await User.findOne({ identifier: identifier ? identifier.toLowerCase() : '' });
 
@@ -269,24 +250,12 @@ app.post('/api/tournaments/book', async (req, res) => {
         if (tournament.registeredPlayers.find(p => p.identifier === user.identifier)) {
             return res.status(400).json({ success: false, message: "Already Joined this match!" });
         }
-        if (tournament.registeredPlayers.length >= tournament.totalSlots) {
-            return res.status(400).json({ success: false, message: "Match is Full!" });
-        }
 
         if (parseInt(tournament.entryFee) === 0) {
             tournament.registeredPlayers.push({ identifier: user.identifier, username, gameId, mode: "FREE" });
             user.weeklyFreeMatchesPlayed += 1;
             await tournament.save(); await user.save();
             return res.json({ success: true, message: "Free Match Booked!", user });
-        }
-
-        if (useVipPass) {
-            if (!user.vipPassCount || user.vipPassCount <= 0) return res.status(400).json({ success: false, message: "No VIP Pass available!" });
-            user.vipPassCount -= 1;
-            user.totalPaidMatchesPlayed += 1;
-            tournament.registeredPlayers.push({ identifier: user.identifier, username, gameId, mode: "VIP_PASS" });
-            await user.save(); await tournament.save();
-            return res.json({ success: true, message: "VIP Pass Applied Successfully!", user });
         }
 
         if (payViaWallet) {
@@ -298,8 +267,8 @@ app.post('/api/tournaments/book', async (req, res) => {
             return res.json({ success: true, message: "Booked via Wallet Balance!", user });
         }
 
-        if (!utr || utr.length !== 12) return res.status(400).json({ success: false, message: "Invalid 12-Digit UTR Number!" });
-        if (await UsedUtr.findOne({ utr })) return res.status(400).json({ success: false, message: "This UTR is already used!" });
+        if (!utr || utr.length !== 12) return res.status(400).json({ success: false, message: "Invalid 12-Digit UTR!" });
+        if (await UsedUtr.findOne({ utr })) return res.status(400).json({ success: false, message: "UTR already used!" });
 
         const validSms = await SmsUtr.findOne({ utr });
         if (validSms) {
@@ -307,81 +276,18 @@ app.post('/api/tournaments/book', async (req, res) => {
             user.totalPaidMatchesPlayed += 1;
             tournament.registeredPlayers.push({ identifier: user.identifier, username, gameId, utr, mode: "SMS_UTR" });
             await user.save(); await tournament.save();
-            return res.json({ success: true, message: "UTR Verified & Slot Booked!", user });
+            return res.json({ success: true, message: "Payment Verified & Slot Booked!", user });
         } else {
-            return res.json({ success: false, message: "Payment Verification Pending. Please wait 10 seconds and retry." });
+            return res.json({ success: false, message: "Payment Verification Pending. Retry after 10 seconds." });
         }
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post('/api/user/support-ticket', async (req, res) => {
-    try {
-        const { identifier, category, message, attachmentUrl } = req.body;
-        const ticket = new SupportTicket({ ticketId: "TCK_" + Date.now(), identifier: identifier ? identifier.toLowerCase() : 'guest', category, message, attachmentUrl });
-        await ticket.save();
-        res.json({ success: true, message: "Ticket Submitted to Support Team!" });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-// ADMIN API
+// ADMIN API CONTROL
 app.post('/api/admin/system-control', async (req, res) => {
     try {
         const { adminSecret, action, data } = req.body;
-        if (adminSecret !== ADMIN_SECRET) return res.status(401).json({ success: false, message: "Invalid Admin Secret Key!" });
-
-        let config = await getConfigs();
-
-        if (action === "UPDATE_APP_LINK") {
-            config.appDownloadUrl = data.appDownloadUrl;
-            await config.save();
-            return res.json({ success: true, message: "App Download Link Successfully Updated!" });
-        }
-
-        if (action === "AUTO_SETTLE_MATCH") {
-            const { tournamentId, results } = data;
-            const tournament = await Tournament.findOne({ id: tournamentId });
-            if (!tournament) return res.status(404).json({ success: false, message: "Tournament Not Found" });
-
-            for (let r of results) {
-                const player = await User.findOne({ identifier: r.identifier.toLowerCase() });
-                if (player) {
-                    let totalPrize = (parseInt(r.kills || 0) * tournament.perKillPrize);
-                    if (parseInt(r.rank) === 1) {
-                        totalPrize += tournament.rank1Prize;
-                        player.weeklyFreeWins += 1;
-                    }
-                    player.walletBalance += totalPrize;
-                    player.totalEarnings += totalPrize;
-                    player.notifications.push({
-                        title: "🏆 Match Reward Credited!",
-                        message: `Match ${tournament.id}: ${r.kills} Kills (Rank #${r.rank}). ₹${totalPrize} added to your wallet.`
-                    });
-                    await player.save();
-                }
-            }
-            tournament.status = "COMPLETED";
-            await tournament.save();
-            return res.json({ success: true, message: "Match Settled & Rewards Distributed Automatically!" });
-        }
-
-        if (action === "PUSH_GLOBAL_NOTIFICATION") {
-            const { title, message } = data;
-            await User.updateMany({}, { $push: { notifications: { title, message, timestamp: new Date() } } });
-            return res.json({ success: true, message: "Push Broadcast Sent to All Players!" });
-        }
-
-        if (action === "EXPORT_USERS_DATA") return res.json({ success: true, users: await User.find({}) });
-
-        if (action === "EXPORT_BOOKINGS_DATA") {
-            const tournaments = await Tournament.find({});
-            let bookings = [];
-            tournaments.forEach(t => {
-                t.registeredPlayers.forEach(p => {
-                    bookings.push({ tournamentId: t.id, gameName: t.gameName, identifier: p.identifier, inGameName: p.username, gameUid: p.gameId, paymentMode: p.mode, utr: p.utr || "N/A" });
-                });
-            });
-            return res.json({ success: true, bookings });
-        }
+        if (adminSecret !== ADMIN_SECRET) return res.status(401).json({ success: false, message: "Invalid Admin Key!" });
 
         if (action === "ADD_TOURNAMENT") {
             const count = await Tournament.countDocuments();
@@ -392,27 +298,22 @@ app.post('/api/admin/system-control', async (req, res) => {
                 perKillPrize: parseInt(data.perKillPrize || 0), rank1Prize: parseInt(data.rank1Prize || 0)
             });
             await newT.save();
-            return res.json({ success: true, message: "Tournament Published Successfully!" });
+            return res.json({ success: true, message: "Tournament Published!" });
         }
 
         if (action === "UPDATE_ROOM") {
             await Tournament.updateOne({ id: data.tournamentId }, { $set: { roomId: data.roomId, roomPass: data.roomPass } });
-            const t = await Tournament.findOne({ id: data.tournamentId });
-            if (t) {
-                const identifiers = t.registeredPlayers.map(p => p.identifier);
-                await User.updateMany({ identifier: { $in: identifiers } }, {$push: { notifications: { title: "🎮 Room Credentials Released!", message: `Match ${t.id}: Room ID: ${data.roomId} | Pass: ${data.roomPass}` } }
-                });
-            }
-            return res.json({ success: true, message: "Room Credentials Pushed to Joined Players!" });
+            return res.json({ success: true, message: "Room Credentials Updated!" });
         }
 
-       res.status(400).json({ success: false, message: "Invalid Action Code" });
+        if (action === "EXPORT_USERS_DATA") return res.json({ success: true, users: await User.find({}) });
+
+        res.status(400).json({ success: false, message: "Invalid Action" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
 app.use(express.static(__dirname));
-
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'players.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
-app.listen(process.env.PORT || 3000, () => console.log("Server Active on Port 3000"));
+app.listen(process.env.PORT || 3000, () => console.log("Server running on Port 3000"));
