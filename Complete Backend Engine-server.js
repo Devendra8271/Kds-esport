@@ -5,7 +5,6 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const path = require('path');
 const crypto = require('crypto');
-const axios = require('axios');
 
 const app = express();
 
@@ -137,7 +136,7 @@ function calculateAge(dobString) {
 
 // --- API ENDPOINTS ---
 
-// PLAYER REGISTRATION (Apps Script Integrated)
+// PLAYER REGISTRATION (Native fetch used instead of axios)
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referredBy } = req.body;
@@ -183,16 +182,20 @@ app.post('/api/player/register', async (req, res) => {
 
         await newUser.save();
 
-        // Forward to Google Apps Script
+        // Forward to Google Apps Script via native fetch
         try {
-            await axios.post(APPS_SCRIPT_URL, {
-                type: "REGISTRATION",
-                name,
-                email: cleanEmail,
-                mobile: cleanMobile,
-                dob,
-                gender,
-                referralCode: referCode
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: "REGISTRATION",
+                    name,
+                    email: cleanEmail,
+                    mobile: cleanMobile,
+                    dob,
+                    gender,
+                    referralCode: referCode
+                })
             });
         } catch (scriptErr) {
             console.error("App Script Trigger Error:", scriptErr.message);
