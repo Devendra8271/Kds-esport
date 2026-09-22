@@ -13,10 +13,10 @@ app.use(cors());
 app.use(express.static(__dirname));
 
 // Configuration Constants
-const ADMIN_SECRET = "Dev8271@";
+const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 const ADMIN_EMAIL = "its.kds.dev@gmail.com";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzYf8qK96CVFiP4kvkf1fnyphK-ld7JLOoFew2jW1JEJ1Zknsg2dwp7hRSzVmWA1wR8Lw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwk1G8-N-XBpyq59ZRoMZ5S1CcPblaErbglJLxe7SG_0TFdQlZYoLETuOR_j1Gp08gr/exec";
 
 // Email Transporter setup with verified App Password
 const transporter = nodemailer.createTransport({
@@ -32,7 +32,7 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
   .catch(err => console.error("Database Connection Error:", err));
 
-// --- MONGOOSE SCHEMAS ---
+// --- MONGOOSE SCHEMAS (Validation proof defaults added) ---
 
 const SystemConfigSchema = new mongoose.Schema({
     minMatchesRequired: { type: Number, default: 10 },
@@ -50,24 +50,25 @@ const SystemConfig = mongoose.model('SystemConfig', SystemConfigSchema);
 
 const UserSchema = new mongoose.Schema({
     identifier: { type: String, required: true, unique: true },
-    email: { type: String, required: true },
-    mobile: { type: String, required: true },
-    name: { type: String, required: true },
-    dob: { type: String, required: true },
+    email: { type: String, default: "" },
+    mobile: { type: String, default: "" },
+    name: { type: String, default: "Player" },
+    dob: { type: String, default: "2000-01-01" },
     gender: { type: String, default: "Male" },
-    password: { type: String, required: true },
-    profilePic: { type: String, default: "https://via.placeholder.com/100" },
+    password: { type: String, default: "" },
+    profilePic: { type: String, default: "https://api.dicebear.com/7.x/bottts/svg?seed=Gamer1" },
     walletBalance: { type: Number, default: 0 },
     weeklyFreeMatchesPlayed: { type: Number, default: 0 },
     weeklyFreeWins: { type: Number, default: 0 },
     totalPaidMatchesPlayed: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 },
     vipPassCount: { type: Number, default: 0 },
-    referralCode: { type: String, required: true },
+    referralCode: { type: String, default: () => "REF" + Math.floor(100000 + Math.random() * 900000) },
     referredBy: { type: String, default: null },
     referralCount: { type: Number, default: 0 },
     resetToken: { type: String, default: null },
     resetTokenExpires: { type: Date, default: null },
+    isBanned: { type: Boolean, default: false },
     notifications: [{ title: String, message: String, timestamp: { type: Date, default: Date.now } }],
     createdAt: { type: Date, default: Date.now }
 });
@@ -179,42 +180,7 @@ app.post('/api/player/register', async (req, res) => {
         }
 
         await newUser.save();
-
-        try {
-            const welcomeHtml = `
-                <div style="font-family: Arial, sans-serif; padding: 20px; background: #121212; color: #fff; border-radius: 8px;">
-                    <h2 style="color: #00ff88;">⚡ Welcome to KDS E-sport!</h2>
-                    <p>Hello <b>${name}</b>,</p>
-                    <p>Your registration was successful. Thank you for joining KDS E-sport Gaming Hub!</p>
-                    <p><b>Account Details:</b></p>
-                    <ul>
-                        <li>Email: ${cleanEmail}</li>
-                        <li>Mobile: ${cleanMobile}</li>
-                        <li>Referral Code: ${referCode}</li>
-                    </ul>
-                    <p style="color: #00ff88; font-weight: bold;">Get ready to participate in tournaments and win cash rewards!</p>
-                </div>
-            `;
-
-            transporter.sendMail({
-                from: 'KDS E-sports <its.kds.dev@gmail.com>',
-                to: cleanEmail,
-                subject: '🎉 Registration Successful - Thank You for Joining KDS E-sport',
-                html: welcomeHtml
-            }, () => {});
-
-            transporter.sendMail({
-                from: 'KDS E-sports <its.kds.dev@gmail.com>',
-                to: ADMIN_EMAIL,
-                subject: '📥 New Player Registered - KDS E-sport',
-                html: `<h3>New Player Registration Data</h3>${welcomeHtml}`
-            }, () => {});
-
-        } catch (scriptErr) {
-            console.error("Email Error:", scriptErr.message);
-        }
-
-        res.json({ success: true, message: "Registration Successful! Thank you messages and data sent successfully." });
+        res.json({ success: true, message: "Registration Successful!" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -238,6 +204,10 @@ app.post('/api/player/login', async (req, res) => {
 
         if (!user || user.password !== password) {
             return res.status(401).json({ success: false, message: "Invalid Mobile/Email or Password!" });
+        }
+
+        if (user.isBanned) {
+            return res.status(403).json({ success: false, message: "Your account has been banned by the Administrator!" });
         }
 
         const config = await getConfigs();
@@ -268,7 +238,7 @@ app.post('/api/player/forgot-password', async (req, res) => {
         const token = crypto.randomBytes(32).toString('hex');
         user.resetToken = token;
         user.resetTokenExpires = Date.now() + 3600000;
-        await user.save();
+        await user.save({ validateBeforeSave: false });
 
         const resetLink = `https://kds-esport.onrender.com/reset-password.html?token=${token}&email=${encodeURIComponent(user.email)}`;
 
@@ -281,7 +251,6 @@ app.post('/api/player/forgot-password', async (req, res) => {
                     <h3 style="color: #00ff88;">Password Reset Request</h3>
                     <p>Hello ${user.name}, click the button below to reset your password:</p>
                     <a href="${resetLink}" style="background:#00ff88; color:#000; padding:10px 15px; text-decoration:none; font-weight:bold; border-radius:5px; display:inline-block; margin-top:10px;">Reset Password</a>
-                    <p style="margin-top: 15px; font-size:12px; color:#aaa;">If you did not request this, please ignore this email.</p>
                 </div>
             `
         };
@@ -289,7 +258,7 @@ app.post('/api/player/forgot-password', async (req, res) => {
         transporter.sendMail(mailOptions, (err) => {
             if (err) {
                 console.error("Mail Send Error:", err);
-                return res.status(500).json({ success: false, message: "Failed to send reset link email. Please check configuration." });
+                return res.status(500).json({ success: false, message: "Failed to send reset link email." });
             }
             res.json({ success: true, message: "Password reset link successfully sent to player's registered Email ID!" });
         });
@@ -349,6 +318,7 @@ app.post('/api/tournaments/book', async (req, res) => {
         const user = await User.findOne({ identifier: identifier.toLowerCase() });
 
         if (!tournament || !user) return res.status(400).json({ success: false, message: "Invalid Request." });
+        if (user.isBanned) return res.status(403).json({ success: false, message: "Banned players cannot book matches!" });
 
         if (payViaWallet) {
             if (user.walletBalance < tournament.entryFee) return res.status(400).json({ success: false, message: "Insufficient Wallet balance!" });
@@ -393,7 +363,7 @@ app.post('/api/admin/system-control', async (req, res) => {
                 id: "T" + (count + 101), gameName: data.gameName, matchMode: data.matchMode || "SOLO",
                 status: "UPCOMING", matchDate: data.matchDate, matchTime: data.matchTime, bannerUrl: data.bannerUrl,
                 entryFee: parseInt(data.entryFee), totalSlots: parseInt(data.totalSlots || 100), upiId: data.upiId,
-                perKillPrize: parseInt(data.perKillPrize || 0), rank1Prize: parseInt(data.rank1Prize || 0)
+                perKillPrize: parseInt(data.perKillPrizo || 0), rank1Prize: parseInt(data.rank1Prize || 0)
             });
             await newT.save();
             return res.json({ success: true, message: "Tournament Published Successfully!" });
@@ -402,6 +372,25 @@ app.post('/api/admin/system-control', async (req, res) => {
         if (action === "UPDATE_ROOM") {
             await Tournament.updateOne({ id: data.tournamentId }, { $set: { roomId: data.roomId, roomPass: data.roomPass } });
             return res.json({ success: true, message: "Room Credentials Released!" });
+        }
+
+        if (action === "KICK_PLAYER") {
+            const { tournamentId, playerIdentifier } = data;
+            await Tournament.updateOne(
+                { id: tournamentId },
+                { $pull: { registeredPlayers: { identifier: playerIdentifier.toLowerCase() } } }
+            );
+            return res.json({ success: true, message: "Player removed/kicked from the match successfully!" });
+        }
+
+        if (action === "TOGGLE_USER_BAN") {
+            const { playerIdentifier, banStatus } = data;
+            const user = await User.findOne({ $or: [{ email: playerIdentifier.toLowerCase() }, { mobile: playerIdentifier }] });
+            if (!user) return res.status(404).json({ success: false, message: "Player not found!" });
+
+            user.isBanned = banStatus;
+            await user.save();
+            return res.json({ success: true, message: `Player status updated. Banned: ${banStatus}` });
         }
 
         res.status(400).json({ success: false, message: "Invalid Action Code" });
