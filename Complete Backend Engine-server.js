@@ -16,7 +16,7 @@ app.use(express.static(__dirname));
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 const ADMIN_EMAIL = "its.kds.dev@gmail.com";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwk1G8-N-XBpyq59ZRoMZ5S1CcPblaErbglJLxe7SG_0TFdQlZYoLETuOR_j1Gp08gr/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzYf8qK96CVFiP4kvkf1fnyphK-ld7JLOoFew2jW1JEJ1Zknsg2dwp7hRSzVmWA1wR8Lw/exec";
 
 // Email Transporter setup with verified App Password
 const transporter = nodemailer.createTransport({
@@ -32,7 +32,7 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
   .catch(err => console.error("Database Connection Error:", err));
 
-// --- MONGOOSE SCHEMAS (Validation proof defaults added) ---
+// --- MONGOOSE SCHEMAS ---
 
 const SystemConfigSchema = new mongoose.Schema({
     minMatchesRequired: { type: Number, default: 10 },
@@ -180,11 +180,11 @@ app.post('/api/player/register', async (req, res) => {
         }
 
         await newUser.save();
-        res.json({ success: true, message: "Registration Successful!" });
+        res.json({ success: true, message: "Registration Successful! Thank you." });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// PLAYER LOGIN
+// PLAYER LOGIN (Fixed to accept both Email or Mobile)
 app.post('/api/player/login', async (req, res) => {
     try {
         const { identifier, password } = req.body;
@@ -215,7 +215,7 @@ app.post('/api/player/login', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD
+// FORGOT PASSWORD (Fixed to lookup using email or mobile and successfully send mail to player's email)
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
@@ -233,7 +233,7 @@ app.post('/api/player/forgot-password', async (req, res) => {
             ] 
         });
 
-        if (!user) return res.status(404).json({ success: false, message: "No account found with provided Email/Mobile!" });
+        if (!user || !user.email) return res.status(404).json({ success: false, message: "No account or valid email found with provided Email/Mobile!" });
 
         const token = crypto.randomBytes(32).toString('hex');
         user.resetToken = token;
