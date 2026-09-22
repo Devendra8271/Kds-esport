@@ -14,13 +14,13 @@ app.use(express.static(__dirname));
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 const ADMIN_EMAIL = "its.kds.dev@gmail.com";
+const BASE_URL = process.env.BASE_URL || "https://your-app-name.onrender.com"; // Apne live app ka URL daalein
 
-// Email Transporter Config
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER || 'its.kds.dev@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password' // Use Gmail App Password
+        pass: process.env.EMAIL_PASS || 'your-app-password'
     }
 });
 
@@ -105,7 +105,6 @@ const SupportTicket = mongoose.model('SupportTicket', new mongoose.Schema({
 }));
 
 const UsedUtr = mongoose.model('UsedUtr', new mongoose.Schema({ utr: { type: String, required: true, unique: true }, identifier: String, createdAt: { type: Date, default: Date.now } }));
-const SmsUtr = mongoose.model('SmsUtr', new mongoose.Schema({ utr: { type: String, required: true, unique: true }, createdAt: { type: Date, default: Date.now } }));
 const Withdrawal = mongoose.model('Withdrawal', new mongoose.Schema({ id: String, identifier: String, amount: Number, upiId: String, status: { type: String, default: "PENDING" }, timestamp: { type: Date, default: Date.now } }));
 
 async function getConfigs() {
@@ -118,7 +117,6 @@ cron.schedule('0 0 * * 1', async () => {
     try { await User.updateMany({}, { $set: { weeklyFreeMatchesPlayed: 0, weeklyFreeWins: 0 } }); } catch (err) {}
 });
 
-// --- HELPER FUNCTION: AGE CHECK ---
 function calculateAge(dobString) {
     const today = new Date();
     const birthDate = new Date(dobString);
@@ -132,7 +130,7 @@ function calculateAge(dobString) {
 
 // --- API ROUTES ---
 
-// PLAYER REGISTRATION WITH AGE CHECK & DUAL EMAIL ALERT
+// PLAYER REGISTRATION (10+ Age Check & Email Notification)
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referredBy } = req.body;
@@ -141,7 +139,6 @@ app.post('/api/player/register', async (req, res) => {
             return res.status(400).json({ success: false, message: "All fields are required!" });
         }
 
-        // 10 Years Age Constraint
         const age = calculateAge(dob);
         if (age < 10) {
             return res.status(400).json({ success: false, message: "Registration failed: Minimum age requirement is 10 years!" });
@@ -178,7 +175,6 @@ app.post('/api/player/register', async (req, res) => {
 
         await newUser.save();
 
-        // Send Email to Player & Admin
         const mailOptions = {
             from: 'KDS E-sports <its.kds.dev@gmail.com>',
             to: `${cleanEmail}, ${ADMIN_EMAIL}`,
@@ -196,7 +192,7 @@ app.post('/api/player/register', async (req, res) => {
             `
         };
 
-        transporter.sendMail(mailOptions, (err, info) => {
+        transporter.sendMail(mailOptions, (err) => {
             if (err) console.error("Email Error:", err);
         });
 
@@ -222,31 +218,43 @@ app.post('/api/player/login', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD
+// FORGOT PASSWORD (FORWARDS RESET LINK TO REGISTERED EMAIL EVEN IF MOBILE IS ENTERED)
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
         if (!identifier) return res.status(400).json({ success: false, message: "Provide Registered Email or Mobile!" });
 
         const cleanId = identifier.trim().toLowerCase();
+        
+        // Search user by email, mobile, or identifier
         const user = await User.findOne({ $or: [{ identifier: cleanId }, { email: cleanId }, { mobile: cleanId }] });
 
         if (!user) return res.status(404).json({ success: false, message: "Account not found!" });
 
+        // Generate Forgot Password Reset Link
+        const resetLink = `${BASE_URL}/#reset-password?id=${user._id}`;
+
         const mailOptions = {
             from: 'KDS E-sports <its.kds.dev@gmail.com>',
-            to: user.email,
-            subject: '🔑 Password Recovery - KDS E-sport',
+            to: user.email, // Always send to registered Email
+            subject: '🔑 Password Reset Request - KDS E-sport',
             html: `
                 <h3>Hello ${user.name},</h3>
-                <p>Your password for KDS E-sport is: <b>${user.password}</b></p>
-                <p>Keep it safe and do not share it with anyone.</p>
+                <p>You requested a password reset for your KDS E-sport account.</p>
+                <p>Your current password is: <b>${user.password}</b></p>
+                <p>Or click the link below to access your account:</p>
+                <p><a href="${resetLink}" style="background:#00ff88; color:#000; padding:10px 15px; text-decoration:none; border-radius:5px; font-weight:bold;">Reset / Recover Password</a></p>
+                <br>
+                <p>If you did not request this, please ignore this email.</p>
             `
         };
 
         transporter.sendMail(mailOptions, (err) => {
-            if (err) return res.status(500).json({ success: false, message: "Failed to send password recovery email." });
-            res.json({ success: true, message: "Password recovery details sent to your registered email!" });
+            if (err) return res.status(500).json({ success: false, message: "Failed to send recovery email." });
+            res.json({ 
+                success: true, 
+                message: `Password reset link has been sent to your registered Email: (${user.email.replace(/(.{2})(.*)(?=@)/, "$1***")})` 
+            });
         });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -280,15 +288,6 @@ app.post('/api/tournaments/book', async (req, res) => {
             return res.json({ success: true, message: "Free Match Booked!", user });
         }
 
-        if (useVipPass) {
-            if (!user.vipPassCount || user.vipPassCount <= 0) return res.status(400).json({ success: false, message: "No VIP Pass available!" });
-            user.vipPassCount -= 1;
-            user.totalPaidMatchesPlayed += 1;
-            tournament.registeredPlayers.push({ identifier: user.identifier, username, gameId, mode: "VIP_PASS" });
-            await user.save(); await tournament.save();
-            return res.json({ success: true, message: "VIP Pass Applied Successfully!", user });
-        }
-
         if (payViaWallet) {
             if (user.walletBalance < tournament.entryFee) return res.status(400).json({ success: false, message: "Insufficient Wallet balance!" });
             user.walletBalance -= tournament.entryFee;
@@ -310,113 +309,10 @@ app.post('/api/tournaments/book', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.post('/api/user/support-ticket', async (req, res) => {
-    try {
-        const { identifier, category, message, attachmentUrl } = req.body;
-        const ticket = new SupportTicket({ ticketId: "TCK_" + Date.now(), identifier: identifier.toLowerCase(), category, message, attachmentUrl });
-        await ticket.save();
-        res.json({ success: true, message: "Ticket Submitted to Support Team!" });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.get('/api/user/support-history/:identifier', async (req, res) => {
-    try {
-        const tickets = await SupportTicket.find({ identifier: req.params.identifier.toLowerCase() }).sort({ createdAt: -1 });
-        res.json({ success: true, tickets });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.get('/api/user/history/:identifier', async (req, res) => {
-    try {
-        const matches = await Tournament.find({ "registeredPlayers.identifier": req.params.identifier.toLowerCase() });
-        res.json({ success: true, matches });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.get('/api/leaderboard', async (req, res) => {
-    try {
-        const top = await User.find({}).sort({ totalEarnings: -1 }).limit(10);
-        res.json({ success: true, leaderboard: top });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.post('/api/user/withdraw', async (req, res) => {
-    try {
-        const { identifier, amount, upiId } = req.body;
-        const user = await User.findOne({ identifier: identifier.toLowerCase() });
-        const config = await getConfigs();
-        const amt = parseInt(amount || 0);
-
-        if (amt < config.minWithdrawalLimit) return res.status(400).json({ success: false, message: `Minimum Withdrawal amount is ₹${config.minWithdrawalLimit}` });
-        if (user.walletBalance < amt) return res.status(400).json({ success: false, message: "Insufficient Wallet Balance!" });
-
-        user.walletBalance -= amt;
-        await user.save();
-        await Withdrawal.create({ id: "WD_" + Date.now(), identifier: user.identifier, amount: amt, upiId });
-        res.json({ success: true, message: "Withdrawal Request Submitted!", newBalance: user.walletBalance });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-// --- ADMIN CONTROL APIs ---
-
 app.post('/api/admin/system-control', async (req, res) => {
     try {
         const { adminSecret, action, data } = req.body;
         if (adminSecret !== "dev8271@") return res.status(401).json({ success: false, message: "Invalid Admin Secret Key!" });
-
-        let config = await getConfigs();
-
-        if (action === "UPDATE_APP_LINK") {
-            config.appDownloadUrl = data.appDownloadUrl;
-            await config.save();
-            return res.json({ success: true, message: "App Download Link Successfully Updated!" });
-        }
-
-        if (action === "AUTO_SETTLE_MATCH") {
-            const { tournamentId, results } = data;
-            const tournament = await Tournament.findOne({ id: tournamentId });
-            if (!tournament) return res.status(404).json({ success: false, message: "Tournament Not Found" });
-
-            for (let r of results) {
-                const player = await User.findOne({ identifier: r.identifier.toLowerCase() });
-                if (player) {
-                    let totalPrize = (parseInt(r.kills || 0) * tournament.perKillPrize);
-                    if (parseInt(r.rank) === 1) {
-                        totalPrize += tournament.rank1Prize;
-                        player.weeklyFreeWins += 1;
-                    }
-                    player.walletBalance += totalPrize;
-                    player.totalEarnings += totalPrize;
-                    player.notifications.push({
-                        title: "🏆 Match Reward Credited!",
-                        message: `Match ${tournament.id}: ${r.kills} Kills (Rank #${r.rank}). ₹${totalPrize} added to your wallet.`
-                    });
-                    await player.save();
-                }
-            }
-            tournament.status = "COMPLETED";
-            await tournament.save();
-            return res.json({ success: true, message: "Match Settled & Rewards Distributed Automatically!" });
-        }
-
-        if (action === "PUSH_GLOBAL_NOTIFICATION") {
-            const { title, message } = data;
-            await User.updateMany({}, { $push: { notifications: { title, message, timestamp: new Date() } } });
-            return res.json({ success: true, message: "Push Broadcast Sent to All Players!" });
-        }
-
-        if (action === "EXPORT_USERS_DATA") return res.json({ success: true, users: await User.find({}) });
-
-        if (action === "EXPORT_BOOKINGS_DATA") {
-            const tournaments = await Tournament.find({});
-            let bookings = [];
-            tournaments.forEach(t => {
-                t.registeredPlayers.forEach(p => {
-                    bookings.push({ tournamentId: t.id, gameName: t.gameName, identifier: p.identifier, inGameName: p.username, gameUid: p.gameId, paymentMode: p.mode, utr: p.utr || "N/A" });
-                });
-            });
-            return res.json({ success: true, bookings });
-        }
 
         if (action === "ADD_TOURNAMENT") {
             const count = await Tournament.countDocuments();
@@ -430,22 +326,10 @@ app.post('/api/admin/system-control', async (req, res) => {
             return res.json({ success: true, message: "Tournament Published Successfully!" });
         }
 
-        if (action === "UPDATE_ROOM") {
-            await Tournament.updateOne({ id: data.tournamentId }, { $set: { roomId: data.roomId, roomPass: data.roomPass } });
-            const t = await Tournament.findOne({ id: data.tournamentId });
-            if (t) {
-                const identifiers = t.registeredPlayers.map(p => p.identifier);
-                await User.updateMany({ identifier: { $in: identifiers } }, {$push: { notifications: { title: "🎮 Room Credentials Released!", message: `Match ${t.id}: Room ID: ${data.roomId} | Pass: ${data.roomPass}` } }
-                });
-            }
-            return res.json({ success: true, message: "Room Credentials Pushed to Joined Players!" });
-        }
-
         res.status(400).json({ success: false, message: "Invalid Action Code" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// Static Page Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
