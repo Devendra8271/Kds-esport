@@ -16,7 +16,7 @@ app.use(express.static(__dirname));
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 const ADMIN_EMAIL = "its.kds.dev@gmail.com";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzYf8qK96CVFiP4kvkf1fnyphK-ld7JLOoFew2jW1JEJ1Zknsg2dwp7hRSzVmWA1wR8Lw/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwk1G8-N-XBpyq59ZRoMZ5S1CcPblaErbglJLxe7SG_0TFdQlZYoLETuOR_j1Gp08gr/exec";
 
 // Email Transporter setup with verified App Password
 const transporter = nodemailer.createTransport({
@@ -135,7 +135,6 @@ function calculateAge(dobString) {
 
 // --- API ENDPOINTS ---
 
-// PLAYER REGISTRATION
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referredBy } = req.body;
@@ -180,11 +179,10 @@ app.post('/api/player/register', async (req, res) => {
         }
 
         await newUser.save();
-        res.json({ success: true, message: "Registration Successful! Thank you." });
+        res.json({ success: true, message: "Registration Successful!" });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// PLAYER LOGIN (Fixed to accept both Email or Mobile)
 app.post('/api/player/login', async (req, res) => {
     try {
         const { identifier, password } = req.body;
@@ -215,7 +213,6 @@ app.post('/api/player/login', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD (Fixed to lookup using email or mobile and successfully send mail to player's email)
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
@@ -233,7 +230,7 @@ app.post('/api/player/forgot-password', async (req, res) => {
             ] 
         });
 
-        if (!user || !user.email) return res.status(404).json({ success: false, message: "No account or valid email found with provided Email/Mobile!" });
+        if (!user) return res.status(404).json({ success: false, message: "No account found with provided Email/Mobile!" });
 
         const token = crypto.randomBytes(32).toString('hex');
         user.resetToken = token;
@@ -265,7 +262,22 @@ app.post('/api/player/forgot-password', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// EDIT PROFILE
+// NEW API: Reset Password confirmation endpoint
+app.post('/api/player/reset-password-confirm', async (req, res) => {
+    try {
+        const { email, token, newPassword } = req.body;
+        const user = await User.findOne({ email: email.toLowerCase(), resetToken: token, resetTokenExpires: { $gt: Date.now() } });
+        if (!user) return res.status(400).json({ success: false, message: "Invalid or expired password reset token!" });
+
+        user.password = newPassword;
+        user.resetToken = null;
+        user.resetTokenExpires = null;
+        await user.save();
+
+        res.json({ success: true, message: "Password successfully updated! You can now login." });
+    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
 app.post('/api/player/update-profile', async (req, res) => {
     try {
         const { identifier, name, profilePic, mobile } = req.body;
@@ -281,7 +293,6 @@ app.post('/api/player/update-profile', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// ADD MONEY VIA UTR
 app.post('/api/player/add-money', async (req, res) => {
     try {
         const { identifier, amount, utr } = req.body;
@@ -301,7 +312,6 @@ app.post('/api/player/add-money', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// GET TOURNAMENTS
 app.get('/api/tournaments', async (req, res) => {
     try {
         const tournaments = await Tournament.find({});
@@ -310,7 +320,6 @@ app.get('/api/tournaments', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// BOOK MATCH
 app.post('/api/tournaments/book', async (req, res) => {
     try {
         const { tournamentId, identifier, username, gameId, utr, payViaWallet } = req.body;
@@ -341,7 +350,6 @@ app.post('/api/tournaments/book', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// SUPPORT TICKET
 app.post('/api/user/support-ticket', async (req, res) => {
     try {
         const { identifier, category, message, attachmentUrl } = req.body;
@@ -351,7 +359,6 @@ app.post('/api/user/support-ticket', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// ADMIN CONTROL API
 app.post('/api/admin/system-control', async (req, res) => {
     try {
         const { adminSecret, action, data } = req.body;
@@ -363,7 +370,7 @@ app.post('/api/admin/system-control', async (req, res) => {
                 id: "T" + (count + 101), gameName: data.gameName, matchMode: data.matchMode || "SOLO",
                 status: "UPCOMING", matchDate: data.matchDate, matchTime: data.matchTime, bannerUrl: data.bannerUrl,
                 entryFee: parseInt(data.entryFee), totalSlots: parseInt(data.totalSlots || 100), upiId: data.upiId,
-                perKillPrize: parseInt(data.perKillPrizo || 0), rank1Prize: parseInt(data.rank1Prize || 0)
+                perKillPrize: parseInt(data.perKillPrize || 0), rank1Prize: parseInt(data.rank1Prize || 0)
             });
             await newT.save();
             return res.json({ success: true, message: "Tournament Published Successfully!" });
