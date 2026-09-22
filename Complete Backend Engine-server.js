@@ -12,13 +12,13 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(__dirname));
 
-// Configuration Constants
+// Configuration Constants[cite: 9]
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 const ADMIN_EMAIL = "its.kds.dev@gmail.com";
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwk1G8-N-XBpyq59ZRoMZ5S1CcPblaErbglJLxe7SG_0TFdQlZYoLETuOR_j1Gp08gr/exec";
 
-// Email Transporter setup for direct Nodemailer fallback
+// Email Transporter setup for direct Nodemailer fallback[cite: 9]
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -27,12 +27,12 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Database Connection
+// Database Connection[cite: 9]
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
   .catch(err => console.error("Database Connection Error:", err));
 
-// --- MONGOOSE SCHEMAS ---
+// --- MONGOOSE SCHEMAS ---[cite: 9]
 
 const SystemConfigSchema = new mongoose.Schema({
     minMatchesRequired: { type: Number, default: 10 },
@@ -56,7 +56,7 @@ const UserSchema = new mongoose.Schema({
     dob: { type: String, required: true },
     gender: { type: String, default: "Male" },
     password: { type: String, required: true },
-    profilePic: { type: String, default: "https://via.placeholder.com/100" },
+    profilePic: { type: String, default: "https://api.dicebear.com/7.x/bottts/svg?seed=Gamer1" },
     walletBalance: { type: Number, default: 0 },
     weeklyFreeMatchesPlayed: { type: Number, default: 0 },
     weeklyFreeWins: { type: Number, default: 0 },
@@ -68,6 +68,7 @@ const UserSchema = new mongoose.Schema({
     referralCount: { type: Number, default: 0 },
     resetToken: { type: String, default: null },
     resetTokenExpires: { type: Date, default: null },
+    isBanned: { type: Boolean, default: false }, // Player Ban/Block Flag
     notifications: [{ title: String, message: String, timestamp: { type: Date, default: Date.now } }],
     createdAt: { type: Date, default: Date.now }
 });
@@ -120,7 +121,7 @@ async function getConfigs() {
     return config;
 }
 
-// Reset Weekly Limits Every Monday Midnight
+// Reset Weekly Limits Every Monday Midnight[cite: 9]
 cron.schedule('0 0 * * 1', async () => {
     try { await User.updateMany({}, { $set: { weeklyFreeMatchesPlayed: 0, weeklyFreeWins: 0 } }); } catch (err) {}
 });
@@ -136,7 +137,7 @@ function calculateAge(dobString) {
 
 // --- API ENDPOINTS ---
 
-// PLAYER REGISTRATION (Native fetch used instead of axios)
+// PLAYER REGISTRATION[cite: 9]
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referredBy } = req.body;
@@ -182,7 +183,6 @@ app.post('/api/player/register', async (req, res) => {
 
         await newUser.save();
 
-        // Forward to Google Apps Script via native fetch
         try {
             await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
@@ -205,7 +205,7 @@ app.post('/api/player/register', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// PLAYER LOGIN (via Email OR Mobile)
+// PLAYER LOGIN[cite: 9]
 app.post('/api/player/login', async (req, res) => {
     try {
         const { identifier, password } = req.body;
@@ -218,12 +218,16 @@ app.post('/api/player/login', async (req, res) => {
             return res.status(401).json({ success: false, message: "Invalid Mobile/Email or Password!" });
         }
 
+        if (user.isBanned) {
+            return res.status(403).json({ success: false, message: "Your account has been banned by the Administrator!" });
+        }
+
         const config = await getConfigs();
         res.json({ success: true, user, configs: config });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD
+// FORGOT PASSWORD[cite: 9]
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
@@ -261,7 +265,7 @@ app.post('/api/player/forgot-password', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// EDIT PROFILE
+// EDIT PROFILE & AVATAR[cite: 9]
 app.post('/api/player/update-profile', async (req, res) => {
     try {
         const { identifier, name, profilePic, mobile } = req.body;
@@ -277,7 +281,7 @@ app.post('/api/player/update-profile', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// ADD MONEY VIA UTR
+// ADD MONEY VIA UTR[cite: 9]
 app.post('/api/player/add-money', async (req, res) => {
     try {
         const { identifier, amount, utr } = req.body;
@@ -297,7 +301,7 @@ app.post('/api/player/add-money', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// GET TOURNAMENTS
+// GET TOURNAMENTS[cite: 9]
 app.get('/api/tournaments', async (req, res) => {
     try {
         const tournaments = await Tournament.find({});
@@ -306,7 +310,7 @@ app.get('/api/tournaments', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// BOOK MATCH
+// BOOK MATCH[cite: 9]
 app.post('/api/tournaments/book', async (req, res) => {
     try {
         const { tournamentId, identifier, username, gameId, utr, payViaWallet } = req.body;
@@ -314,6 +318,8 @@ app.post('/api/tournaments/book', async (req, res) => {
         const user = await User.findOne({ identifier: identifier.toLowerCase() });
 
         if (!tournament || !user) return res.status(400).json({ success: false, message: "Invalid Request." });
+
+        if (user.isBanned) return res.status(403).json({ success: false, message: "Banned players cannot book matches!" });
 
         if (payViaWallet) {
             if (user.walletBalance < tournament.entryFee) return res.status(400).json({ success: false, message: "Insufficient Wallet balance!" });
@@ -336,7 +342,7 @@ app.post('/api/tournaments/book', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// SUPPORT TICKET
+// SUPPORT TICKET[cite: 9]
 app.post('/api/user/support-ticket', async (req, res) => {
     try {
         const { identifier, category, message, attachmentUrl } = req.body;
@@ -346,7 +352,7 @@ app.post('/api/user/support-ticket', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// ADMIN CONTROL API
+// ADMIN CONTROL API[cite: 9]
 app.post('/api/admin/system-control', async (req, res) => {
     try {
         const { adminSecret, action, data } = req.body;
@@ -367,6 +373,27 @@ app.post('/api/admin/system-control', async (req, res) => {
         if (action === "UPDATE_ROOM") {
             await Tournament.updateOne({ id: data.tournamentId }, { $set: { roomId: data.roomId, roomPass: data.roomPass } });
             return res.json({ success: true, message: "Room Credentials Released!" });
+        }
+
+        // KICK PLAYER FROM MATCH (Admin Option)
+        if (action === "KICK_PLAYER") {
+            const { tournamentId, playerIdentifier } = data;
+            await Tournament.updateOne(
+                { id: tournamentId },
+                { $pull: { registeredPlayers: { identifier: playerIdentifier.toLowerCase() } } }
+            );
+            return res.json({ success: true, message: "Player removed/kicked from the match successfully!" });
+        }
+
+        // BLOCK / BAN PLAYER (Admin Option)
+        if (action === "TOGGLE_USER_BAN") {
+            const { playerIdentifier, banStatus } = data;
+            const user = await User.findOne({ $or: [{ email: playerIdentifier.toLowerCase() }, { mobile: playerIdentifier }] });
+            if (!user) return res.status(404).json({ success: false, message: "Player not found!" });
+
+            user.isBanned = banStatus;
+            await user.save();
+            return res.json({ success: true, message: `Player status updated. Banned: ${banStatus}` });
         }
 
         res.status(400).json({ success: false, message: "Invalid Action Code" });
