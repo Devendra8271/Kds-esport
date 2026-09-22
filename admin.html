@@ -3,47 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KDS E-sport - Admin Control</title>
+    <title>KDS E-sport - Master Admin Panel</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 600px; margin: auto; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
+        body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 700px; margin: auto; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .input { width: 95%; padding: 10px; margin: 8px 0; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 5px; }
-        .btn { background: #00ff88; color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; width: 100%; }
+        .btn { background: #00ff88; color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+        .btn:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
-    <h2 style="color: #00ff88; text-align: center;">⚡ KDS E-sport Admin Panel</h2>
+    <h1 style="color: #00ff88; text-align: center;">⚡ KDS E-sport Admin Panel</h1>
 
     <div class="card" id="loginCard">
         <h3>🔒 Admin Authentication</h3>
-        <input type="password" id="adminSecret" class="input" placeholder="Enter Secret Key (dev8271@)">
-        <button class="btn" onclick="loginAdmin()">Login Panel</button>
+        <input type="password" id="adminSecret" class="input" placeholder="Enter Admin Secret Key">
+        <button class="btn" onclick="loginAdmin()" style="margin-top: 10px;">Login Panel</button>
     </div>
 
     <div id="adminContent" style="display: none;">
+
         <div class="card">
-            <h3>🏆 Add New Match</h3>
-            <input type="text" id="gameName" class="input" placeholder="Game Name (BGMI / FreeFire)">
+            <h3>📲 APK Download Link Update</h3>
+            <input type="text" id="apkLink" class="input" placeholder="Direct APK URL">
+            <button class="btn" onclick="updateApkLink()">Update App Link</button>
+        </div>
+
+        <div class="card">
+            <h3>🏆 Add New Tournament</h3>
+            <input type="text" id="gameName" class="input" placeholder="Game Name (e.g., BGMI / FreeFire)">
             <select id="matchMode" class="input">
                 <option value="SOLO">SOLO</option>
                 <option value="DUO">DUO</option>
                 <option value="SQUAD">SQUAD</option>
             </select>
-            <input type="text" id="matchDate" class="input" placeholder="Date (e.g. 2026-09-25)">
-            <input type="text" id="matchTime" class="input" placeholder="Time (e.g. 08:00 PM)">
+            <input type="text" id="matchDate" class="input" placeholder="Date (e.g., 2026-09-30)">
+            <input type="text" id="matchTime" class="input" placeholder="Time (e.g., 08:00 PM)">
             <input type="text" id="bannerUrl" class="input" placeholder="Banner Image URL">
             <input type="number" id="entryFee" class="input" placeholder="Entry Fee (₹)">
             <input type="text" id="upiId" class="input" placeholder="UPI ID for Payments">
+            <input type="number" id="perKill" class="input" placeholder="Per Kill Reward (₹)">
+            <input type="number" id="rank1" class="input" placeholder="Rank #1 Reward (₹)">
             <button class="btn" onclick="addTournament()">Publish Match</button>
         </div>
 
         <div class="card">
-            <h3>🎮 Update Room Credentials</h3>
-            <input type="text" id="roomTId" class="input" placeholder="Tournament ID (e.g. T101)">
-            <input type="text" id="roomId" class="input" placeholder="Room ID">
-            <input type="text" id="roomPass" class="input" placeholder="Room Password">
-            <button class="btn" onclick="updateRoom()">Send Credentials</button>
+            <h3>📊 Data Export Options</h3>
+            <button class="btn" onclick="exportData('EXPORT_USERS_DATA')">Export Registered Users</button>
         </div>
+
     </div>
 
     <script>
@@ -54,8 +62,9 @@
             if (key === 'dev8271@') {
                 document.getElementById('adminContent').style.display = 'block';
                 document.getElementById('loginCard').style.display = 'none';
+                alert('Access Granted!');
             } else {
-                alert('Invalid Secret Key!');
+                alert('Wrong Secret Key!');
             }
         }
 
@@ -67,7 +76,12 @@
                 body: JSON.stringify({ adminSecret, action, data })
             });
             const result = await res.json();
-            alert(result.message);
+            alert(result.message || "Action Executed");
+            return result;
+        }
+
+        function updateApkLink() {
+            postAdmin("UPDATE_APP_LINK", { appDownloadUrl: document.getElementById('apkLink').value });
         }
 
         function addTournament() {
@@ -78,16 +92,21 @@
                 matchTime: document.getElementById('matchTime').value,
                 bannerUrl: document.getElementById('bannerUrl').value,
                 entryFee: document.getElementById('entryFee').value,
-                upiId: document.getElementById('upiId').value
+                upiId: document.getElementById('upiId').value,
+                perKillPrize: document.getElementById('perKill').value,
+                rank1Prize: document.getElementById('rank1').value
             });
         }
 
-        function updateRoom() {
-            postAdmin("UPDATE_ROOM", {
-                tournamentId: document.getElementById('roomTId').value,
-                roomId: document.getElementById('roomId').value,
-                roomPass: document.getElementById('roomPass').value
-            });
+        async function exportData(action) {
+            const result = await postAdmin(action, {});
+            if (result.success) {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result));
+                const dlAnchorElem = document.createElement('a');
+                dlAnchorElem.setAttribute("href", dataStr);
+                dlAnchorElem.setAttribute("download", `${action}.json`);
+                dlAnchorElem.click();
+            }
         }
     </script>
 </body>
