@@ -3,6 +3,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -11,6 +12,15 @@ app.use(cors());
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
+
+// Nodemailer Transporter Setup for its.kds.dev@gmail.com
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'its.kds.dev@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your_app_password_here' // Replace with Gmail App Password
+    }
+});
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
@@ -110,10 +120,10 @@ cron.schedule('0 0 * * 1', async () => {
 
 // --- API ROUTES ---
 
-// PLAYER REGISTER
+// PLAYER REGISTER WITH REFERRAL CODE
 app.post('/api/player/register', async (req, res) => {
     try {
-        const { name, email, mobile, dob, gender, password } = req.body;
+        const { name, email, mobile, dob, gender, password, referralCode } = req.body;
         if (!name || !email || !mobile || !password) {
             return res.status(400).json({ success: false, message: "All required fields must be provided!" });
         }
@@ -126,7 +136,7 @@ app.post('/api/player/register', async (req, res) => {
             return res.status(400).json({ success: false, message: "User already exists with this email or mobile!" });
         }
 
-        const referCode = "REF" + Math.floor(100000 + Math.random() * 900000);
+        const selfReferCode = "REF" + Math.floor(100000 + Math.random() * 900000);
         const newUser = new User({
             identifier: cleanMobile,
             loginType: "PHONE",
@@ -137,8 +147,19 @@ app.post('/api/player/register', async (req, res) => {
             gender,
             password,
             pin: "1234",
-            referralCode: referCode
+            referralCode: selfReferCode,
+            referredBy: referralCode || null
         });
+
+        if (referralCode) {
+            const referrer = await User.findOne({ referralCode: referralCode.trim() });
+            if (referrer) {
+                referrer.walletBalance += 10;
+                referrer.referralCount += 1;
+                await referrer.save();
+                newUser.walletBalance += 5;
+            }
+        }
 
         await newUser.save();
         res.json({ success: true, message: "Registration Successful!" });
@@ -171,21 +192,45 @@ app.post('/api/player/login', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD
+// FORGOT PASSWORD VIA GMAIL
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
-        if (!identifier) return res.status(400).json({ success: false, message: "Please provide identifier!" });
+        if (!identifier) return res.status(400).json({ success: false, message: "Please provide your registered Email or Mobile!" });
         
         const cleanId = identifier.trim().toLowerCase();
         const user = await User.findOne({
             $or: [{ identifier: cleanId }, { email: cleanId }, { mobile: cleanId }]
         });
 
-        if (!user) return res.status(404).json({ success: false, message: "Account not found!" });
+        if (!user || !user.email) {
+            return res.status(404).json({ success: false, message: "No user account or email found!" });
+        }
 
-        res.json({ success: true, message: `Reset link / info sent to registered details of ${user.name}` });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+        const mailOptions = {
+            from: '"KDS E-sport Hub" <its.kds.dev@gmail.com>',
+            to: user.email,
+            subject: 'KDS E-sport - Account Password Recovery',
+            html: `
+                <div style="font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #00ff88;">KDS E-sport Gaming Hub</h2>
+                    <p>Hello <b>${user.name}</b>,</p>
+                    <p>You requested your account password details:</p>
+                    <div style="background: #1e1e1e; padding: 15px; border: 1px solid #00ff88; border-radius: 5px; margin: 10px 0;">
+                        <p style="margin: 5px 0;"><b>User ID:</b> ${user.identifier}</p>
+                        <p style="margin: 5px 0;"><b>Password:</b> ${user.password}</p>
+                    </div>
+                    <p>Please keep this information secure and do not share it with anyone.</p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.json({ success: true, message: `Password details sent successfully to ${user.email}!` });
+    } catch (err) { 
+        console.error(err);
+        res.status(500).json({ success: false, message: "Failed to send email. Check SMTP settings." }); 
+    }
 });
 
 app.post('/api/webhook/sms-listener', async (req, res) => {
@@ -203,47 +248,6 @@ app.post('/api/webhook/sms-listener', async (req, res) => {
             return res.json({ success: true, message: "UTR Extracted and Logged!", utr: extractedUtr });
         }
         res.status(400).json({ success: false, message: "No 12-Digit UTR found in SMS." });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.post('/api/user/auth', async (req, res) => {
-    try {
-        const { identifier, name, pin, referredBy } = req.body;
-        if (!identifier || !pin || pin.length !== 4) {
-            return res.status(400).json({ success: false, message: "Valid Phone/Email & 4-Digit PIN required!" });
-        }
-
-        const cleanId = identifier.trim().toLowerCase();
-        let user = await User.findOne({ identifier: cleanId });
-
-        if (!user) {
-            const isEmail = cleanId.includes('@');
-            const referCode = "REF" + Math.floor(100000 + Math.random() * 900000);
-            user = new User({
-                identifier: cleanId,
-                loginType: isEmail ? "EMAIL" : "PHONE",
-                name: name || (isEmail ? cleanId.split('@')[0] : "Player_" + cleanId.slice(-4)),
-                pin,
-                referralCode: referCode,
-                referredBy: referredBy || null
-            });
-
-            if (referredBy && referredBy !== referCode) {
-                const referrer = await User.findOne({ referralCode: referredBy });
-                if (referrer) {
-                    referrer.walletBalance += 10;
-                    referrer.referralCount += 1;
-                    await referrer.save();
-                    user.walletBalance += 5;
-                }
-            }
-            await user.save();
-        } else {
-            if (user.pin !== pin) return res.status(401).json({ success: false, message: "Incorrect Security PIN!" });
-        }
-
-        const config = await getConfigs();
-        res.json({ success: true, user, configs: config });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -319,46 +323,7 @@ app.post('/api/user/support-ticket', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-app.get('/api/user/support-history/:identifier', async (req, res) => {
-    try {
-        const tickets = await SupportTicket.find({ identifier: req.params.identifier.toLowerCase() }).sort({ createdAt: -1 });
-        res.json({ success: true, tickets });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.get('/api/user/history/:identifier', async (req, res) => {
-    try {
-        const matches = await Tournament.find({ "registeredPlayers.identifier": req.params.identifier.toLowerCase() });
-        res.json({ success: true, matches });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.get('/api/leaderboard', async (req, res) => {
-    try {
-        const top = await User.find({}).sort({ totalEarnings: -1 }).limit(10);
-        res.json({ success: true, leaderboard: top });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-app.post('/api/user/withdraw', async (req, res) => {
-    try {
-        const { identifier, amount, upiId } = req.body;
-        const user = await User.findOne({ identifier: identifier.toLowerCase() });
-        const config = await getConfigs();
-        const amt = parseInt(amount || 0);
-
-        if (amt < config.minWithdrawalLimit) return res.status(400).json({ success: false, message: `Minimum Withdrawal amount is ₹${config.minWithdrawalLimit}` });
-        if (user.walletBalance < amt) return res.status(400).json({ success: false, message: "Insufficient Wallet Balance!" });
-
-        user.walletBalance -= amt;
-        await user.save();
-        await Withdrawal.create({ id: "WD_" + Date.now(), identifier: user.identifier, amount: amt, upiId });
-        res.json({ success: true, message: "Withdrawal Request Submitted!", newBalance: user.walletBalance });
-    } catch (err) { res.status(500).json({ success: false, message: err.message }); }
-});
-
-// --- ADMIN CONTROL APIs ---
-
+// ADMIN API
 app.post('/api/admin/system-control', async (req, res) => {
     try {
         const { adminSecret, action, data } = req.body;
@@ -445,17 +410,9 @@ app.post('/api/admin/system-control', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// Static files serving
 app.use(express.static(__dirname));
 
-// Player App Route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'players.html'));
-});
-
-// Admin Panel Route
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'players.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 app.listen(process.env.PORT || 3000, () => console.log("Server Active on Port 3000"));
