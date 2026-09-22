@@ -5,27 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KDS E-sport Gaming Hub</title>
     <style>
-        :root { --primary: #00ff88; --dark: #0d0f12; --card: #181c24; --text: #ffffff; --gold: #ffd700; }
+        :root { --primary: #00ff88; --dark: #0d0f12; --card: #181c24; --text: #ffffff; --gold: #ffd700; --danger: #ff4757; }
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--dark); color: var(--text); }
         .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 2px solid var(--primary); }
         .logo-container { display: flex; align-items: center; gap: 10px; }
         .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, #00ff88, #00b3ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #000; box-shadow: 0 0 10px rgba(0,255,136,0.5); }
         .logo-text { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 0.5px; }
-        .wallet { background: #222a36; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: var(--gold); border: 1px solid #333; }
+        .wallet { background: #222a36; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: var(--gold); border: 1px solid #333; display: none; }
         .container { padding: 15px; max-width: 600px; margin: auto; }
         .card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #28303d; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .btn { background: var(--primary); color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; transition: 0.2s; }
         .btn:hover { opacity: 0.9; transform: scale(1.01); }
         .btn-gold { background: var(--gold); color: #000; }
+        .btn-danger { background: var(--danger); color: #fff; }
         .input { width: 95%; padding: 10px; margin: 8px 0; background: #0d0f12; border: 1px solid #28303d; color: #fff; border-radius: 5px; }
         .filter-bar { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 5px; }
         .filter-btn { background: #222a36; color: #fff; border: none; padding: 6px 12px; border-radius: 15px; cursor: pointer; font-size: 12px; white-space: nowrap; }
         .filter-btn.active { background: var(--primary); color: #000; font-weight: bold; }
         .qr-box { text-align: center; background: #fff; padding: 10px; border-radius: 8px; width: 160px; margin: 10px auto; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: var(--card); padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; border: 1px solid var(--primary); }
         .hidden { display: none; }
-        .profile-img { width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; }
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; }
+        .avatar-picker { display: flex; gap: 10px; overflow-x: auto; margin: 10px 0; padding-bottom: 5px; }
+        .avatar-option { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #444; cursor: pointer; }
+        .avatar-option.selected { border-color: var(--primary); transform: scale(1.1); }
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
         .nav-link { color: #aaa; text-decoration: none; font-weight: bold; cursor: pointer; padding: 5px 10px; }
         .nav-link.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
@@ -38,6 +40,7 @@
             <div class="logo-icon">⚡</div>
             <div class="logo-text">KDS E-sport<br><span style="font-size: 11px; color: #aaa; font-weight: normal;">Gaming Hub</span></div>
         </div>
+        <!-- Balance hidden before login -->
         <div class="wallet" id="walletDisplay">Balance: ₹0</div>
     </div>
 
@@ -96,7 +99,6 @@
                     <button class="filter-btn" onclick="filterMatches('SOLO')">SOLO</button>
                     <button class="filter-btn" onclick="filterMatches('DUO')">DUO</button>
                     <button class="filter-btn" onclick="filterMatches('SQUAD')">SQUAD</button>
-                    <button class="filter-btn" onclick="filterMatches('FREE')">FREE</button>
                 </div>
                 <div id="matchesContainer"></div>
             </div>
@@ -104,18 +106,29 @@
             <!-- Profile Section -->
             <div id="secProfile" class="hidden">
                 <div class="card" style="text-align: center;">
-                    <img id="profAvatar" src="https://via.placeholder.com/100" class="profile-img">
+                    <img id="profAvatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Gamer1" class="profile-img">
                     <h2 id="profName" style="margin: 10px 0 5px 0;">Player Name</h2>
                     <p id="profEmail" style="color: #aaa; margin: 0; font-size: 13px;"></p>
                     <p id="profMobile" style="color: #aaa; margin: 5px 0; font-size: 13px;"></p>
                     <p id="profReferral" style="color: var(--gold); font-size: 13px; font-weight: bold;"></p>
+                    
+                    <button class="btn btn-danger" onclick="handleLogout()" style="margin-top: 15px; width: 60%;">Logout Account</button>
                 </div>
 
                 <div class="card">
-                    <h3 style="margin-top:0; color:var(--primary);">✏️ Edit Profile</h3>
+                    <h3 style="margin-top:0; color:var(--primary);">🎭 Choose Default Avatar</h3>
+                    <div class="avatar-picker">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Gamer1" class="avatar-option" onclick="selectAvatar(this.src)">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Shadow" class="avatar-option" onclick="selectAvatar(this.src)">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Cyber" class="avatar-option" onclick="selectAvatar(this.src)">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Ninja" class="avatar-option" onclick="selectAvatar(this.src)">
+                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Viper" class="avatar-option" onclick="selectAvatar(this.src)">
+                    </div>
+
+                    <h3 style="margin-top:15px; color:var(--primary);">✏️ Edit Profile</h3>
                     <input type="text" id="editName" class="input" placeholder="Update Full Name">
                     <input type="text" id="editMobile" class="input" placeholder="Update Mobile Number">
-                    <input type="text" id="editPhoto" class="input" placeholder="Profile Photo Image URL">
+                    <input type="text" id="editPhoto" class="input" placeholder="Or Enter Custom Avatar Image URL">
                     <button class="btn" onclick="updateProfile()">Save Profile Updates</button>
                 </div>
             </div>
@@ -158,6 +171,7 @@
 
         let currentUser = null;
         let allMatches = [];
+        let selectedAvatarUrl = "";
 
         function switchTab(tab) {
             if (tab === 'login') {
@@ -212,12 +226,21 @@
                 alert('Login Successful!');
                 currentUser = result.user;
                 updateUserUI();
+                document.getElementById('walletDisplay').style.display = 'block'; // Show balance only after login
                 document.getElementById('authCard').style.display = 'none';
                 document.getElementById('mainDashboard').classList.remove('hidden');
                 loadTournaments();
             } else {
                 alert(result.message);
             }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('walletDisplay').style.display = 'none';
+            document.getElementById('mainDashboard').classList.add('hidden');
+            document.getElementById('authCard').style.display = 'block';
+            alert("Logged out successfully!");
         }
 
         async function handleRegister() {
@@ -235,7 +258,6 @@
 
             const payload = { type: "REGISTRATION", name, email, mobile, dob, gender, password, referredBy };
 
-            // Trigger Google Apps Script Web App
             fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -243,7 +265,6 @@
                 body: JSON.stringify(payload)
             });
 
-            // Trigger Node.js Backend API
             const res = await fetch('/api/player/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -252,6 +273,13 @@
             const result = await res.json();
             alert(result.message);
             if (result.success) switchTab('login');
+        }
+
+        function selectAvatar(url) {
+            selectedAvatarUrl = url;
+            document.getElementById('editPhoto').value = url;
+            document.querySelectorAll('.avatar-option').forEach(img => img.classList.remove('selected'));
+            event.target.classList.add('selected');
         }
 
         function updateUserUI() {
@@ -267,7 +295,7 @@
         async function updateProfile() {
             const name = document.getElementById('editName').value;
             const mobile = document.getElementById('editMobile').value;
-            const profilePic = document.getElementById('editPhoto').value;
+            const profilePic = document.getElementById('editPhoto').value || selectedAvatarUrl;
 
             const res = await fetch('/api/player/update-profile', {
                 method: 'POST',
@@ -313,6 +341,14 @@
             renderMatches(allMatches);
         }
 
+        function filterMatches(mode) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            if (mode === 'ALL') return renderMatches(allMatches);
+            const filtered = allMatches.filter(m => m.matchMode === mode);
+            renderMatches(filtered);
+        }
+
         function renderMatches(matches) {
             const container = document.getElementById('matchesContainer');
             container.innerHTML = "";
@@ -324,9 +360,33 @@
                         <p style="margin: 5px 0; font-size:13px; color:#aaa;">📅 ${m.matchDate} at ${m.matchTime} | Fee: ₹${m.entryFee}</p>
                         <p style="margin: 5px 0 12px 0; font-size:13px; color:var(--gold);">🏆 Rank #1 - ₹${m.rank1Prize} | Per Kill - ₹${m.perKillPrize}</p>
                         <p style="font-size:12px; color:#00ff88;">Room ID: ${m.roomId} | Pass: ${m.roomPass}</p>
+                        <button class="btn" onclick="bookMatch('${m.id}')">Book Match Slot</button>
                     </div>
                 `;
             });
+        }
+
+        async function bookMatch(tournamentId) {
+            const gameId = prompt("Enter your In-Game ID / IGN:");
+            if (!gameId) return;
+
+            const payWallet = confirm("Press OK to Pay via Wallet Balance, or CANCEL to pay via manual UTR");
+            let payload = { tournamentId, identifier: currentUser.identifier, username: currentUser.name, gameId, payViaWallet: payWallet };
+
+            if (!payWallet) {
+                const utr = prompt("Enter 12-Digit UTR Number:");
+                if (!utr || utr.length !== 12) return alert("Invalid UTR!");
+                payload.utr = utr;
+            }
+
+            const res = await fetch('/api/tournaments/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (data.success && data.user) { currentUser = data.user; updateUserUI(); }
         }
 
         async function submitTicket() {
