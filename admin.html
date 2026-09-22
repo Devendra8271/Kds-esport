@@ -9,6 +9,7 @@
         .card { background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .input { width: 95%; padding: 10px; margin: 8px 0; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 5px; }
         .btn { background: #00ff88; color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; }
+        .btn-danger { background: #ff4757; color: #fff; }
         .btn:hover { opacity: 0.9; }
     </style>
 </head>
@@ -27,6 +28,20 @@
         <h3>📲 APK Download Link Update</h3>
         <input type="text" id="apkLink" class="input" placeholder="Direct APK URL">
         <button class="btn" onclick="updateApkLink()">Update App Link</button>
+    </div>
+
+    <!-- NEW ADMIN ACTION: Kick / Ban Player -->
+    <div class="card" style="border-color: #ff4757;">
+        <h3 style="color: #ff4757;">🚫 Player Management (Ban / Kick)</h3>
+        <input type="text" id="manageUserIdentifier" class="input" placeholder="Player Email or Mobile">
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+            <button class="btn btn-danger" onclick="toggleUserBan(true)">Ban Player</button>
+            <button class="btn" onclick="toggleUserBan(false)" style="background: #2ed573; color: #fff;">Unban Player</button>
+        </div>
+        <hr style="border-color: #333; margin: 15px 0;">
+        <input type="text" id="kickTId" class="input" placeholder="Tournament ID (e.g. T101)">
+        <input type="text" id="kickUserEmail" class="input" placeholder="Player Email / Identifier">
+        <button class="btn btn-danger" onclick="kickPlayer()">Remove Player From Match</button>
     </div>
 
     <div class="card">
@@ -74,6 +89,7 @@
         <button class="btn" onclick="exportData('EXPORT_USERS_DATA')">Export Registered Users</button>
         <button class="btn" style="background:#ffd700;" onclick="exportData('EXPORT_BOOKINGS_DATA')">Export Match Bookings</button>
     </div>
+
 </div>
 
     <script>
@@ -95,6 +111,20 @@
             postAdmin("UPDATE_APP_LINK", { appDownloadUrl: document.getElementById('apkLink').value });
         }
 
+        function toggleUserBan(banStatus) {
+            postAdmin("TOGGLE_USER_BAN", { 
+                playerIdentifier: document.getElementById('manageUserIdentifier').value, 
+                banStatus: banStatus 
+            });
+        }
+
+        function kickPlayer() {
+            postAdmin("KICK_PLAYER", { 
+                tournamentId: document.getElementById('kickTId').value, 
+                playerIdentifier: document.getElementById('kickUserEmail').value 
+            });
+        }
+
         function addTournament() {
             postAdmin("ADD_TOURNAMENT", {
                 gameName: document.getElementById('gameName').value,
@@ -113,7 +143,7 @@
             postAdmin("UPDATE_ROOM", {
                 tournamentId: document.getElementById('roomTId').value,
                 roomId: document.getElementById('roomId').value,
-                roomPass: document.getElementById('roomPass'.value)
+                roomPass: document.getElementById('roomPass').value
             });
         }
 
