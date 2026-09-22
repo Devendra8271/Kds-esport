@@ -3,230 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KDS E-sport Gaming Hub</title>
+    <title>KDS Esports - Player Portal</title>
     <style>
-        :root { --primary: #00ff88; --dark: #0d0f12; --card: #181c24; --text: #ffffff; --gold: #ffd700; }
-        body { margin: 0; font-family: sans-serif; background: var(--dark); color: var(--text); }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 2px solid var(--primary); }
-        .container { padding: 15px; max-width: 600px; margin: auto; }
-        .card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #28303d; }
-        .btn { background: var(--primary); color: #000; border: none; padding: 10px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; }
-        .input { width: 95%; padding: 10px; margin: 8px 0; background: #0d0f12; border: 1px solid #28303d; color: #fff; border-radius: 5px; }
+        body { font-family: Arial, sans-serif; background: #0f0f12; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .card { background: #1a1a24; border-radius: 10px; padding: 20px; width: 100%; max-width: 400px; border: 1px solid #333; margin-bottom: 20px; }
+        input, select, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 5px; border: 1px solid #444; background: #252533; color: white; box-sizing: border-box; }
+        button { background: #ff4757; font-weight: bold; cursor: pointer; border: none; }
+        button:hover { background: #ff6b81; }
+        .link { color: #70a1ff; cursor: pointer; text-align: center; font-size: 0.9em; display: block; margin-top: 10px; }
         .hidden { display: none; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div style="font-size: 18px; font-weight: bold; color: var(--primary);">⚡ KDS E-sport Hub</div>
-        <div id="walletDisplay" style="display:none; color: var(--gold); font-weight: bold;"></div>
+
+<div id="authContainer">
+    <!-- LOGIN FORM -->
+    <div id="loginCard" class="card">
+        <h2>Player Login</h2>
+        <input type="text" id="loginIdentifier" placeholder="Email or Mobile Number">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="handleLogin()">LOGIN</button>
+        <span class="link" onclick="toggleView('forgot')">Forgot Password?</span>
+        <span class="link" onclick="toggleView('register')">Don't have an account? Register</span>
     </div>
 
-    <div class="container">
-        <!-- PASSWORD RESET CARD (Automatically opens if email token exists in URL) -->
-        <div id="resetPasswordCard" class="card hidden">
-            <h3 style="color: var(--primary); text-align: center;">🔑 Set New Password</h3>
-            <input type="password" id="resetNewPass" class="input" placeholder="Enter New Password">
-            <input type="password" id="resetConfirmPass" class="input" placeholder="Confirm New Password">
-            <button class="btn" onclick="submitNewPassword()" style="margin-top: 10px;">Update Password</button>
-        </div>
-
-        <!-- AUTH CARD -->
-        <div id="authCard" class="card">
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button class="btn" id="loginTab" onclick="switchMode('login')" style="background:var(--primary);">Login</button>
-                <button class="btn" id="regTab" onclick="switchMode('register')" style="background:#333; color:#fff;">Register</button>
-            </div>
-
-            <div id="loginForm">
-                <h3 style="color: var(--primary);">🔐 Player Login</h3>
-                <input type="text" id="loginIdentifier" class="input" placeholder="Mobile Number or Email">
-                <input type="password" id="loginPassword" class="input" placeholder="Password">
-                <button class="btn" onclick="handleLogin()" style="margin-top:10px;">Login</button>
-                <p style="text-align: center; margin-top:10px;"><a href="#" onclick="forgotPassword()" style="color:#00ff88;">Forgot Password?</a></p>
-            </div>
-
-            <div id="registerForm" class="hidden">
-                <h3 style="color: var(--primary);">📝 Register Account</h3>
-                <input type="text" id="regName" class="input" placeholder="Full Name">
-                <input type="email" id="regEmail" class="input" placeholder="Email Address">
-                <input type="text" id="regMobile" class="input" placeholder="Mobile Number">
-                <input type="date" id="regDob" class="input" value="2005-01-01">
-                <select id="regGender" class="input"><option value="Male">Male</option><option value="Female">Female</option></select>
-                <input type="password" id="regPassword" class="input" placeholder="Password">
-                <input type="text" id="regReferral" class="input" placeholder="Referral Code (Optional)">
-                <button class="btn" onclick="handleRegister()" style="margin-top:10px;">Register</button>
-            </div>
-        </div>
-
-        <!-- MAIN DASHBOARD -->
-        <div id="mainDashboard" class="hidden">
-            <div class="card" style="text-align: center;">
-                <h2 id="profName">Player</h2>
-                <h3 style="color:var(--gold);" id="walletBigDisplay">₹0</h3>
-                <button class="btn" onclick="handleLogout()" style="background:#ff4757; color:#fff; width:50%; margin-top:10px;">Logout</button>
-            </div>
-            
-            <div class="card">
-                <h3>💰 Add Funds (UTR)</h3>
-                <input type="number" id="addAmt" class="input" placeholder="Amount (₹)">
-                <input type="text" id="addUtr" class="input" placeholder="12-Digit UTR Number" maxlength="12">
-                <button class="btn" onclick="addMoney()">Add Money</button>
-            </div>
-
-            <div id="matchesContainer"></div>
-        </div>
+    <!-- REGISTER FORM -->
+    <div id="registerCard" class="card hidden">
+        <h2>Player Registration</h2>
+        <input type="text" id="regName" placeholder="Full Name">
+        <input type="email" id="regEmail" placeholder="Email Address">
+        <input type="text" id="regMobile" placeholder="Mobile Number">
+        <input type="date" id="regDob">
+        <select id="regGender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </select>
+        <input type="password" id="regPassword" placeholder="Password">
+        <input type="text" id="regReferral" placeholder="Referral Code (Optional)">
+        <button onclick="handleRegister()">REGISTER</button>
+        <span class="link" onclick="toggleView('login')">Already have an account? Login</span>
     </div>
 
-    <script>
-        let currentUser = null;
+    <!-- FORGOT PASSWORD FORM -->
+    <div id="forgotCard" class="card hidden">
+        <h2>Forgot Password</h2>
+        <p style="font-size: 0.85em; color: #ccc;">Enter Registered Email or Mobile to receive reset link.</p>
+        <input type="text" id="forgotIdentifier" placeholder="Email or Mobile">
+        <button onclick="handleForgot()">SEND RESET LINK</button>
+        <span class="link" onclick="toggleView('login')">Back to Login</span>
+    </div>
+</div>
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('token') && urlParams.has('email')) {
-                document.getElementById('authCard').style.display = 'none';
-                document.getElementById('resetPasswordCard').classList.remove('hidden');
-            }
+<!-- PLAYER DASHBOARD -->
+<div id="dashboardCard" class="card hidden">
+    <h2>Welcome, <span id="playerName"></span>!</h2>
+    <p><b>Wallet Balance:</b> ₹<span id="playerWallet">0</span></p>
+    <p><b>Referral Code:</b> <span id="playerReferCode"></span></p>
+    <button onclick="logout()">LOGOUT</button>
+</div>
+
+<script>
+    function toggleView(view) {
+        document.getElementById('loginCard').classList.add('hidden');
+        document.getElementById('registerCard').classList.add('hidden');
+        document.getElementById('forgotCard').classList.add('hidden');
+        if (view === 'login') document.getElementById('loginCard').classList.remove('hidden');
+        if (view === 'register') document.getElementById('registerCard').classList.remove('hidden');
+        if (view === 'forgot') document.getElementById('forgotCard').classList.remove('hidden');
+    }
+
+    async function handleLogin() {
+        const identifier = document.getElementById('loginIdentifier').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        const res = await fetch('/api/player/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ identifier, password })
         });
-
-        function switchMode(mode) {
-            if (mode === 'login') {
-                document.getElementById('loginForm').classList.remove('hidden');
-                document.getElementById('registerForm').classList.add('hidden');
-                document.getElementById('loginTab').style.background = 'var(--primary)';
-                document.getElementById('loginTab').style.color = '#000';
-                document.getElementById('regTab').style.background = '#333';
-                document.getElementById('regTab').style.color = '#fff';
-            } else {
-                document.getElementById('loginForm').classList.add('hidden');
-                document.getElementById('registerForm').classList.remove('hidden');
-                document.getElementById('regTab').style.background = 'var(--primary)';
-                document.getElementById('regTab').style.color = '#000';
-                document.getElementById('loginTab').style.background = '#333';
-                document.getElementById('loginTab').style.color = '#fff';
-            }
+        const data = await res.json();
+        if(data.success) {
+            showDashboard(data.user);
+        } else {
+            alert(data.message);
         }
+    }
 
-        async function submitNewPassword() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            const email = urlParams.get('email');
-            const newPassword = document.getElementById('resetNewPass').value;
-            const confirmNewPassword = document.getElementById('resetConfirmPass').value;
+    async function handleRegister() {
+        const payload = {
+            name: document.getElementById('regName').value,
+            email: document.getElementById('regEmail').value,
+            mobile: document.getElementById('regMobile').value,
+            dob: document.getElementById('regDob').value,
+            gender: document.getElementById('regGender').value,
+            password: document.getElementById('regPassword').value,
+            referredBy: document.getElementById('regReferral').value
+        };
 
-            if (!newPassword || newPassword !== confirmNewPassword) return alert('Passwords do not match or empty!');
+        const res = await fetch('/api/player/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        alert(data.message);
+        if(data.success) toggleView('login');
+    }
 
-            const res = await fetch('/api/player/reset-password-confirm', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, token, newPassword })
-            });
-            const result = await res.json();
-            alert(result.message);
-            if (result.success) window.location.href = window.location.pathname.split('?')[0]; 
-        }
+    async function handleForgot() {
+        const identifier = document.getElementById('forgotIdentifier').value;
+        const res = await fetch('/api/player/forgot-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ identifier })
+        });
+        const data = await res.json();
+        alert(data.message);
+    }
 
-        async function handleLogin() {
-            const identifier = document.getElementById('loginIdentifier').value;
-            const password = document.getElementById('loginPassword').value;
-            const res = await fetch('/api/player/login', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier, password })
-            });
-            const result = await res.json();
-            if (result.success) {
-                currentUser = result.user;
-                document.getElementById('walletDisplay').innerText = `Balance: ₹${currentUser.walletBalance}`;
-                document.getElementById('walletDisplay').style.display = 'block';
-                document.getElementById('walletBigDisplay').innerText = `₹${currentUser.walletBalance}`;
-                document.getElementById('profName').innerText = currentUser.name;
-                document.getElementById('authCard').style.display = 'none';
-                document.getElementById('mainDashboard').classList.remove('hidden');
-                loadTournaments();
-            } else { alert(result.message); }
-        }
+    function showDashboard(user) {
+        document.getElementById('authContainer').classList.add('hidden');
+        document.getElementById('dashboardCard').classList.remove('hidden');
+        document.getElementById('playerName').innerText = user.name;
+        document.getElementById('playerWallet').innerText = user.walletBalance;
+        document.getElementById('playerReferCode').innerText = user.referralCode;
+    }
 
-        async function handleRegister() {
-            const data = {
-                name: document.getElementById('regName').value, email: document.getElementById('regEmail').value,
-                mobile: document.getElementById('regMobile').value, dob: document.getElementById('regDob').value,
-                gender: document.getElementById('regGender').value, password: document.getElementById('regPassword').value,
-                referredBy: document.getElementById('regReferral').value
-            };
-            const res = await fetch('/api/player/register', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-            });
-            const result = await res.json();
-            alert(result.message);
-            if (result.success) switchMode('login');
-        }
-
-        function handleLogout() { location.reload(); }
-
-        async function forgotPassword() {
-            const identifier = prompt('Enter registered Email or Mobile Number:');
-            if (identifier) {
-                const res = await fetch('/api/player/forgot-password', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ identifier })
-                });
-                alert((await res.json()).message);
-            }
-        }
-
-        async function addMoney() {
-            const amount = document.getElementById('addAmt').value;
-            const utr = document.getElementById('addUtr').value;
-            const res = await fetch('/api/player/add-money', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier: currentUser.identifier, amount, utr })
-            });
-            const result = await res.json();
-            alert(result.message);
-            if (result.success) {
-                currentUser = result.user;
-                document.getElementById('walletBigDisplay').innerText = `₹${currentUser.walletBalance}`;
-                document.getElementById('walletDisplay').innerText = `Balance: ₹${currentUser.walletBalance}`;
-            }
-        }
-
-        async function loadTournaments() {
-            const res = await fetch('/api/tournaments');
-            const data = await res.json();
-            const container = document.getElementById('matchesContainer');
-            container.innerHTML = "<h3>🏆 Available Tournaments</h3>";
-            data.tournaments.forEach(m => {
-                container.innerHTML += `
-                    <div class="card">
-                        <h3>${m.gameName} (${m.matchMode})</h3>
-                        <p>Date: ${m.matchDate} | Fee: ₹${m.entryFee}</p>
-                        <p style="color:var(--gold);">Prize: ₹${m.rank1Prize}</p>
-                        <p style="color:var(--primary);">Room ID: ${m.roomId} | Pass: ${m.roomPass}</p>
-                        <button class="btn" onclick="bookMatch('${m.id}', ${m.entryFee})">Book Slot</button>
-                    </div>
-                `;
-            });
-        }
-
-        async function bookMatch(tournamentId, fee) {
-            const gameId = prompt("Enter your In-Game ID (IGN):");
-            if (!gameId) return;
-            const payViaWallet = confirm("Click OK to pay via Wallet Balance, or Cancel to pay via UTR");
-            let utr = "";
-            if (!payViaWallet) {
-                utr = prompt("Enter 12-Digit UTR Number:");
-                if (!utr || utr.length !== 12) return alert("Invalid UTR!");
-            }
-            const res = await fetch('/api/tournaments/book', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tournamentId, identifier: currentUser.identifier, username: currentUser.name, gameId, utr, payViaWallet })
-            });
-            const result = await res.json();
-            alert(result.message);
-            if (result.success && result.user) {
-                currentUser = result.user;
-                document.getElementById('walletBigDisplay').innerText = `₹${currentUser.walletBalance}`;
-                document.getElementById('walletDisplay').innerText = `Balance: ₹${currentUser.walletBalance}`;
-            }
-        }
-    </script>
+    function logout() {
+        location.reload();
+    }
+</script>
 </body>
 </html>
