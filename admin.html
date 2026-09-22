@@ -1,5 +1,3 @@
-﻿
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,68 +15,68 @@
 <body>
     <h1 style="color: #00ff88; text-align: center;">⚡ KDS E-sport Admin Panel</h1>
 
-   <div class="card" id="loginCard">
-    <h3>🔒 Admin Authentication</h3>
-    <input type="password" id="adminSecret" class="input" placeholder="Enter Admin Secret Key">
-    <button class="btn" onclick="loginAdmin()" style="margin-top: 10px;">Login Panel</button>
-</div>
-
-<div id="adminContent" style="display: none;">
-
-    <div class="card">
-        <h3>📲 APK Download Link Update</h3>
-        <input type="text" id="apkLink" class="input" placeholder="Direct APK URL">
-        <button class="btn" onclick="updateApkLink()">Update App Link</button>
+    <div class="card" id="loginCard">
+        <h3>🔒 Admin Authentication</h3>
+        <input type="password" id="adminSecret" class="input" placeholder="Enter Admin Secret Key">
+        <button class="btn" onclick="loginAdmin()" style="margin-top: 10px;">Login Panel</button>
     </div>
 
-    <div class="card">
-        <h3>🏆 Add New Tournament</h3>
-        <input type="text" id="gameName" class="input" placeholder="Game Name (e.g., BGMI / FreeFire)">
-        <select id="matchMode" class="input">
-            <option value="SOLO">SOLO</option>
-            <option value="DUO">DUO</option>
-            <option value="SQUAD">SQUAD</option>
-        </select>
-        <input type="text" id="matchDate" class="input" placeholder="Date (e.g., 2026-08-30)">
-        <input type="text" id="matchTime" class="input" placeholder="Time (e.g., 08:00 PM)">
-        <input type="text" id="bannerUrl" class="input" placeholder="Banner Image URL">
-        <input type="number" id="entryFee" class="input" placeholder="Entry Fee (₹)">
-        <input type="text" id="upiId" class="input" placeholder="UPI ID for Payments">
-        <input type="number" id="perKill" class="input" placeholder="Per Kill Reward (₹)">
-        <input type="number" id="rank1" class="input" placeholder="Rank #1 Reward (₹)">
-        <button class="btn" onclick="addTournament()">Publish Match</button>
-    </div>
+    <div id="adminContent" style="display: none;">
+        <div class="card">
+            <h3>📲 APK Download Link Update</h3>
+            <input type="text" id="apkLink" class="input" placeholder="Direct APK URL">
+            <button class="btn" onclick="updateApkLink()">Update App Link</button>
+        </div>
 
-    <div class="card">
-        <h3>🎮 Broadcast Room Credentials</h3>
-        <input type="text" id="roomTId" class="input" placeholder="Tournament ID (e.g. T101)">
-        <input type="text" id="roomId" class="input" placeholder="Room ID">
-        <input type="text" id="roomPass" class="input" placeholder="Room Password">
-        <button class="btn" onclick="updateRoom()">Push to Players</button>
-    </div>
+        <div class="card">
+            <h3>🏆 Add New Tournament</h3>
+            <input type="text" id="gameName" class="input" placeholder="Game Name (e.g., BGMI / FreeFire)">
+            <select id="matchMode" class="input">
+                <option value="SOLO">SOLO</option>
+                <option value="DUO">DUO</option>
+                <option value="SQUAD">SQUAD</option>
+            </select>
+            <input type="text" id="matchDate" class="input" placeholder="Date (e.g., 2026-08-30)">
+            <input type="text" id="matchTime" class="input" placeholder="Time (e.g., 08:00 PM)">
+            <input type="text" id="bannerUrl" class="input" placeholder="Banner Image URL">
+            <input type="number" id="entryFee" class="input" placeholder="Entry Fee (₹)">
+            <input type="text" id="upiId" class="input" placeholder="UPI ID for Payments">
+            <input type="number" id="perKill" class="input" placeholder="Per Kill Reward (₹)">
+            <input type="number" id="rank1" class="input" placeholder="Rank #1 Reward (₹)">
+            <button class="btn" onclick="addTournament()">Publish Match</button>
+        </div>
 
-    <div class="card">
-        <h3>🤖 Automated Result Settlement</h3>
-        <input type="text" id="settleTId" class="input" placeholder="Tournament ID (e.g. T101)">
-        <textarea id="settleResults" class="input" placeholder='JSON Array: [{"identifier":"user@mail.com","kills":4,"rank":1}]' style="height: 60px;"></textarea>
-        <button class="btn" onclick="settleMatch()">Settle & Distribute Funds</button>
-    </div>
+        <div class="card">
+            <h3>🎮 Broadcast Room Credentials</h3>
+            <input type="text" id="roomTId" class="input" placeholder="Tournament ID (e.g. T101)">
+            <input type="text" id="roomId" class="input" placeholder="Room ID">
+            <input type="text" id="roomPass" class="input" placeholder="Room Password">
+            <button class="btn" onclick="updateRoom()">Push to Players</button>
+        </div>
 
-    <div class="card">
-        <h3>📢 Push Broadcast Notification</h3>
-        <input type="text" id="broadcastTitle" class="input" placeholder="Notification Title">
-        <input type="text" id="broadcastMessage" class="input" placeholder="Notification Message">
-        <button class="btn" onclick="sendBroadcast()">Send Push Alert</button>
-    </div>
+        <div class="card">
+            <h3>🤖 Automated Result Settlement</h3>
+            <input type="text" id="settleTId" class="input" placeholder="Tournament ID (e.g. T101)">
+            <textarea id="settleResults" class="input" placeholder='JSON Array: [{"identifier":"user@mail.com","kills":4,"rank":1}]' style="height: 60px;"></textarea>
+            <button class="btn" onclick="settleMatch()">Settle & Distribute Funds</button>
+        </div>
 
-    <div class="card">
-        <h3>📊 Data Export Options</h3>
-        <button class="btn" onclick="exportData('EXPORT_USERS_DATA')">Export Registered Users</button>
-        <button class="btn" style="background:#ffd700;" onclick="exportData('EXPORT_BOOKINGS_DATA')">Export Match Bookings</button>
+        <div class="card">
+            <h3>📢 Push Broadcast Notification</h3>
+            <input type="text" id="broadcastTitle" class="input" placeholder="Notification Title">
+            <input type="text" id="broadcastMessage" class="input" placeholder="Notification Message">
+            <button class="btn" onclick="sendBroadcast()">Send Push Alert</button>
+        </div>
+
+        <div class="card">
+            <h3>📊 Data Export Options</h3>
+            <button class="btn" onclick="exportData('EXPORT_USERS_DATA')">Export Registered Users</button>
+            <button class="btn" style="background:#ffd700;" onclick="exportData('EXPORT_BOOKINGS_DATA')">Export Match Bookings</button>
+        </div>
     </div>
 
     <script>
-        const API_URL = "https://kds-esport.onrender.com/api/admin/system-control";
+        const API_URL = "/api/admin/system-control";
 
         async function postAdmin(action, data) {
             const adminSecret = document.getElementById('adminSecret').value;
@@ -142,17 +140,17 @@
                 dlAnchorElem.click();
             }
         }
-                </div>
+
         function loginAdmin() {
-    const key = document.getElementById('adminSecret').value;
-    if (key === 'dev8271@') {
-        document.getElementById('adminContent').style.display = 'block';
-        document.getElementById('loginCard').style.display = 'none';
-        alert('Access Granted!');
-    } else {
-        alert('Wrong Secret Key!');
-    }
-}
+            const key = document.getElementById('adminSecret').value;
+            if (key === 'dev8271@') {
+                document.getElementById('adminContent').style.display = 'block';
+                document.getElementById('loginCard').style.display = 'none';
+                alert('Access Granted!');
+            } else {
+                alert('Wrong Secret Key!');
+            }
+        }
     </script>
 </body>
 </html>
