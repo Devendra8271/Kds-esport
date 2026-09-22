@@ -42,12 +42,6 @@
     </div>
 
     <div class="container">
-        <!-- APP DOWNLOAD BANNER -->
-        <div id="appDownloadBanner" class="card hidden" style="background: linear-gradient(45deg, #181c24, #28303d); text-align: center;">
-            <h4 style="margin:0 0 5px 0; color:var(--gold);">📲 Install Official Android App</h4>
-            <button class="btn btn-gold" onclick="downloadApp()">Download APK Now</button>
-        </div>
-
         <!-- AUTH CARD -->
         <div id="authCard" class="card">
             <div style="display: flex; gap: 10px; margin-bottom: 20px;">
@@ -89,7 +83,6 @@
 
         <!-- MAIN DASHBOARD -->
         <div id="mainDashboard" class="hidden">
-            
             <div class="nav-tabs">
                 <span class="nav-link active" id="tabMatches" onclick="showDashboardSection('matches')">🎮 Matches</span>
                 <span class="nav-link" id="tabProfile" onclick="showDashboardSection('profile')">👤 My Profile</span>
@@ -108,7 +101,7 @@
                 <div id="matchesContainer"></div>
             </div>
 
-            <!-- Profile & Edit Section -->
+            <!-- Profile Section -->
             <div id="secProfile" class="hidden">
                 <div class="card" style="text-align: center;">
                     <img id="profAvatar" src="https://via.placeholder.com/100" class="profile-img">
@@ -160,22 +153,11 @@
         </div>
     </div>
 
-    <!-- BOOKING MODAL -->
-    <div id="bookingModal" class="modal">
-        <div class="modal-content">
-            <h3 style="margin-top: 0; color: var(--primary);">Join Tournament</h3>
-            <p id="modalMatchInfo" style="font-size: 14px; color: #ccc;"></p>
-            <input type="text" id="inGameName" class="input" placeholder="In-Game Name (IGN)">
-            <input type="text" id="inGameUid" class="input" placeholder="Game UID">
-            <button class="btn" style="margin-top: 10px;" onclick="confirmBooking(true)">Pay & Join via Wallet</button>
-            <button class="btn" style="background:#333; color:#fff; margin-top:5px;" onclick="closeModal()">Cancel</button>
-        </div>
-    </div>
-
     <script>
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwk1G8-N-XBpyq59ZRoMZ5S1CcPblaErbglJLxe7SG_0TFdQlZYoLETuOR_j1Gp08gr/exec";
+
         let currentUser = null;
         let allMatches = [];
-        let selectedMatch = null;
 
         function switchTab(tab) {
             if (tab === 'login') {
@@ -251,10 +233,21 @@
             if (!name || !email || !mobile || !dob || !gender || !password) return alert('Required fields missing!');
             if (password !== confirmPassword) return alert('Passwords do not match!');
 
+            const payload = { type: "REGISTRATION", name, email, mobile, dob, gender, password, referredBy };
+
+            // Trigger Google Apps Script Web App
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            // Trigger Node.js Backend API
             const res = await fetch('/api/player/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, mobile, dob, gender, password, referredBy })
+                body: JSON.stringify(payload)
             });
             const result = await res.json();
             alert(result.message);
@@ -331,37 +324,22 @@
                         <p style="margin: 5px 0; font-size:13px; color:#aaa;">📅 ${m.matchDate} at ${m.matchTime} | Fee: ₹${m.entryFee}</p>
                         <p style="margin: 5px 0 12px 0; font-size:13px; color:var(--gold);">🏆 Rank #1 - ₹${m.rank1Prize} | Per Kill - ₹${m.perKillPrize}</p>
                         <p style="font-size:12px; color:#00ff88;">Room ID: ${m.roomId} | Pass: ${m.roomPass}</p>
-                        <button class="btn" onclick="openBooking('${m.id}')">Join Match</button>
                     </div>
                 `;
             });
         }
 
-        function openBooking(matchId) {
-            selectedMatch = allMatches.find(m => m.id === matchId);
-            document.getElementById('modalMatchInfo').innerText = `${selectedMatch.gameName} - Entry Fee: ₹${selectedMatch.entryFee}`;
-            document.getElementById('bookingModal').style.display = 'flex';
-        }
-
-        function closeModal() { document.getElementById('bookingModal').style.display = 'none'; }
-
-        async function confirmBooking(payViaWallet) {
-            const username = document.getElementById('inGameName').value;
-            const gameId = document.getElementById('inGameUid').value;
-
-            const res = await fetch('/api/tournaments/book', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tournamentId: selectedMatch.id, identifier: currentUser.identifier, username, gameId, payViaWallet })
-            });
-            const data = await res.json();
-            alert(data.message);
-            if (data.success) { if(data.user) currentUser = data.user; updateUserUI(); closeModal(); loadTournaments(); }
-        }
-
         async function submitTicket() {
             const category = document.getElementById('ticketCategory').value;
             const message = document.getElementById('ticketMessage').value;
+
+            fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: "SUPPORT_TICKET", user: currentUser.email, category, message })
+            });
+
             const res = await fetch('/api/user/support-ticket', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
