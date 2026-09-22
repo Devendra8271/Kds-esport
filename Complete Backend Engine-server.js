@@ -12,13 +12,13 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(__dirname));
 
-// Configuration Constants[cite: 9]
+// Configuration Constants
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 const ADMIN_EMAIL = "its.kds.dev@gmail.com";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwk1G8-N-XBpyq59ZRoMZ5S1CcPblaErbglJLxe7SG_0TFdQlZYoLETuOR_j1Gp08gr/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzYf8qK96CVFiP4kvkf1fnyphK-ld7JLOoFew2jW1JEJ1Zknsg2dwp7hRSzVmWA1wR8Lw/exec";
 
-// Email Transporter setup for direct Nodemailer fallback[cite: 9]
+// Email Transporter Setup
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -27,13 +27,12 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Database Connection[cite: 9]
+// Database Connection
 mongoose.connect(MONGO_URI)
   .then(() => console.log("Database Connected Successfully!"))
   .catch(err => console.error("Database Connection Error:", err));
 
-// --- MONGOOSE SCHEMAS ---[cite: 9]
-
+// --- SCHEMAS ---
 const SystemConfigSchema = new mongoose.Schema({
     minMatchesRequired: { type: Number, default: 10 },
     minWinsRequired: { type: Number, default: 5 },
@@ -68,7 +67,7 @@ const UserSchema = new mongoose.Schema({
     referralCount: { type: Number, default: 0 },
     resetToken: { type: String, default: null },
     resetTokenExpires: { type: Date, default: null },
-    isBanned: { type: Boolean, default: false }, // Player Ban/Block Flag
+    isBanned: { type: Boolean, default: false },
     notifications: [{ title: String, message: String, timestamp: { type: Date, default: Date.now } }],
     createdAt: { type: Date, default: Date.now }
 });
@@ -113,7 +112,6 @@ const SupportTicket = mongoose.model('SupportTicket', new mongoose.Schema({
 }));
 
 const UsedUtr = mongoose.model('UsedUtr', new mongoose.Schema({ utr: { type: String, required: true, unique: true }, identifier: String, createdAt: { type: Date, default: Date.now } }));
-const Withdrawal = mongoose.model('Withdrawal', new mongoose.Schema({ id: String, identifier: String, amount: Number, upiId: String, status: { type: String, default: "PENDING" }, timestamp: { type: Date, default: Date.now } }));
 
 async function getConfigs() {
     let config = await SystemConfig.findOne();
@@ -121,7 +119,6 @@ async function getConfigs() {
     return config;
 }
 
-// Reset Weekly Limits Every Monday Midnight[cite: 9]
 cron.schedule('0 0 * * 1', async () => {
     try { await User.updateMany({}, { $set: { weeklyFreeMatchesPlayed: 0, weeklyFreeWins: 0 } }); } catch (err) {}
 });
@@ -135,9 +132,9 @@ function calculateAge(dobString) {
     return age;
 }
 
-// --- API ENDPOINTS ---
+// --- API ROUTES ---
 
-// PLAYER REGISTRATION[cite: 9]
+// PLAYER REGISTRATION (Triggers Player Welcome + Admin Alert Email)
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referredBy } = req.body;
@@ -183,6 +180,7 @@ app.post('/api/player/register', async (req, res) => {
 
         await newUser.save();
 
+        // Trigger Google Apps Script for automated emails
         try {
             await fetch(APPS_SCRIPT_URL, {
                 method: 'POST',
@@ -205,14 +203,24 @@ app.post('/api/player/register', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// PLAYER LOGIN[cite: 9]
+// DUAL LOGIN (Email or Mobile)
 app.post('/api/player/login', async (req, res) => {
     try {
         const { identifier, password } = req.body;
-        if (!identifier || !password) return res.status(400).json({ success: false, message: "Mobile/Email and Password are required!" });
+        if (!identifier || !password) {
+            return res.status(400).json({ success: false, message: "Mobile/Email and Password are required!" });
+        }
 
-        const cleanInput = identifier.trim().toLowerCase();
-        const user = await User.findOne({ $or: [{ email: cleanInput }, { mobile: cleanInput }, { identifier: cleanInput }] });
+        const inputVal = identifier.trim().toLowerCase();
+        const rawInput = identifier.trim();
+
+        const user = await User.findOne({
+            $or: [
+                { email: inputVal },
+                { mobile: rawInput },
+                { identifier: inputVal }
+            ]
+        });
 
         if (!user || user.password !== password) {
             return res.status(401).json({ success: false, message: "Invalid Mobile/Email or Password!" });
@@ -227,81 +235,108 @@ app.post('/api/player/login', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD[cite: 9]
+// FORGOT PASSWORD (Sends reset link via Apps Script)
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
         if (!identifier) return res.status(400).json({ success: false, message: "Provide Registered Email or Mobile Number!" });
 
-        const cleanInput = identifier.trim().toLowerCase();
-        const user = await User.findOne({ $or: [{ email: cleanInput }, { mobile: cleanInput }] });
+        const inputVal = identifier.trim().toLowerCase();
+        const rawInput = identifier.trim();
 
-        if (!user) return res.status(404).json({ success: false, message: "No account found with provided Email/Mobile!" });
+        const user = await User.findOne({
+            $or: [
+                { email: inputVal },
+                { mobile: rawInput }
+            ]
+        });
+
+        if (!user) return res.status(404).json({ success: false, message: "No account found with provided Email or Mobile Number!" });
 
         const token = crypto.randomBytes(32).toString('hex');
         user.resetToken = token;
-        user.resetTokenExpires = Date.now() + 3600000;
+        user.resetTokenExpires = Date.now() + 3600000; // 1 Hour
         await user.save();
 
         const resetLink = `https://kds-esport.onrender.com/reset-password.html?token=${token}&email=${encodeURIComponent(user.email)}`;
 
-        const mailOptions = {
-            from: 'KDS E-sports <its.kds.dev@gmail.com>',
-            to: user.email,
-            subject: '🔑 Password Reset Link - KDS E-sport',
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h3>Password Reset Request</h3>
-                    <p>Hello ${user.name}, click the button below to reset your password:</p>
-                    <a href="${resetLink}" style="background:#00ff88; color:#000; padding:10px 15px; text-decoration:none; font-weight:bold; border-radius:5px;">Reset Password</a>
-                </div>
-            `
-        };
+        try {
+            await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: "FORGOT_PASSWORD",
+                    email: user.email,
+                    resetLink: resetLink,
+                    name: user.name
+                })
+            });
+        } catch (scriptErr) {
+            console.error("App Script Email Trigger Failed:", scriptErr.message);
+        }
 
-        transporter.sendMail(mailOptions, (err) => {
-            if (err) return res.status(500).json({ success: false, message: "Failed to send reset link email." });
-            res.json({ success: true, message: "Password reset link sent to player's registered Email ID!" });
-        });
+        res.json({ success: true, message: `Password reset link has been sent to the registered email address (${user.email})!` });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// EDIT PROFILE & AVATAR[cite: 9]
+// CONFIRM PASSWORD RESET
+app.post('/api/player/confirm-reset-password', async (req, res) => {
+    try {
+        const { token, email, newPassword } = req.body;
+        if (!token || !email || !newPassword) {
+            return res.status(400).json({ success: false, message: "Invalid request parameters!" });
+        }
+
+        const user = await User.findOne({
+            email: email.toLowerCase(),
+            resetToken: token,
+            resetTokenExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Invalid or expired password reset token!" });
+        }
+
+        user.password = newPassword;
+        user.resetToken = null;
+        user.resetTokenExpires = null;
+        await user.save();
+
+        res.json({ success: true, message: "Password updated successfully! You can now log in." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// PROFILE, WALLET, TOURNAMENTS & ADMIN ROUTES
 app.post('/api/player/update-profile', async (req, res) => {
     try {
         const { identifier, name, profilePic, mobile } = req.body;
         const user = await User.findOne({ identifier: identifier.toLowerCase() });
         if (!user) return res.status(404).json({ success: false, message: "User not found!" });
-
         if (name) user.name = name;
         if (profilePic) user.profilePic = profilePic;
         if (mobile) user.mobile = mobile;
-
         await user.save();
         res.json({ success: true, message: "Profile Updated Successfully!", user });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// ADD MONEY VIA UTR[cite: 9]
 app.post('/api/player/add-money', async (req, res) => {
     try {
         const { identifier, amount, utr } = req.body;
         const amt = parseInt(amount);
-
         if (!utr || utr.length !== 12) return res.status(400).json({ success: false, message: "Enter valid 12-Digit UTR!" });
         if (await UsedUtr.findOne({ utr })) return res.status(400).json({ success: false, message: "This UTR is already used!" });
-
         const user = await User.findOne({ identifier: identifier.toLowerCase() });
         if (!user) return res.status(404).json({ success: false, message: "User not found!" });
-
         await UsedUtr.create({ utr, identifier: user.identifier });
         user.walletBalance += amt;
         await user.save();
-
         res.json({ success: true, message: `₹${amt} Added to Wallet Successfully!`, user });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// GET TOURNAMENTS[cite: 9]
 app.get('/api/tournaments', async (req, res) => {
     try {
         const tournaments = await Tournament.find({});
@@ -310,15 +345,12 @@ app.get('/api/tournaments', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// BOOK MATCH[cite: 9]
 app.post('/api/tournaments/book', async (req, res) => {
     try {
         const { tournamentId, identifier, username, gameId, utr, payViaWallet } = req.body;
         const tournament = await Tournament.findOne({ id: tournamentId });
         const user = await User.findOne({ identifier: identifier.toLowerCase() });
-
         if (!tournament || !user) return res.status(400).json({ success: false, message: "Invalid Request." });
-
         if (user.isBanned) return res.status(403).json({ success: false, message: "Banned players cannot book matches!" });
 
         if (payViaWallet) {
@@ -332,17 +364,14 @@ app.post('/api/tournaments/book', async (req, res) => {
 
         if (!utr || utr.length !== 12) return res.status(400).json({ success: false, message: "Invalid 12-Digit UTR Number!" });
         if (await UsedUtr.findOne({ utr })) return res.status(400).json({ success: false, message: "This UTR is already used!" });
-
         await UsedUtr.create({ utr, identifier: user.identifier });
         user.totalPaidMatchesPlayed += 1;
         tournament.registeredPlayers.push({ identifier: user.identifier, username, gameId, utr, mode: "MANUAL_UTR" });
         await user.save(); await tournament.save();
         return res.json({ success: true, message: "Slot Booked Successfully!", user });
-
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// SUPPORT TICKET[cite: 9]
 app.post('/api/user/support-ticket', async (req, res) => {
     try {
         const { identifier, category, message, attachmentUrl } = req.body;
@@ -352,7 +381,6 @@ app.post('/api/user/support-ticket', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// ADMIN CONTROL API[cite: 9]
 app.post('/api/admin/system-control', async (req, res) => {
     try {
         const { adminSecret, action, data } = req.body;
@@ -375,25 +403,22 @@ app.post('/api/admin/system-control', async (req, res) => {
             return res.json({ success: true, message: "Room Credentials Released!" });
         }
 
-        // KICK PLAYER FROM MATCH (Admin Option)
         if (action === "KICK_PLAYER") {
             const { tournamentId, playerIdentifier } = data;
             await Tournament.updateOne(
                 { id: tournamentId },
                 { $pull: { registeredPlayers: { identifier: playerIdentifier.toLowerCase() } } }
             );
-            return res.json({ success: true, message: "Player removed/kicked from the match successfully!" });
+            return res.json({ success: true, message: "Player removed successfully!" });
         }
 
-        // BLOCK / BAN PLAYER (Admin Option)
         if (action === "TOGGLE_USER_BAN") {
             const { playerIdentifier, banStatus } = data;
             const user = await User.findOne({ $or: [{ email: playerIdentifier.toLowerCase() }, { mobile: playerIdentifier }] });
             if (!user) return res.status(404).json({ success: false, message: "Player not found!" });
-
             user.isBanned = banStatus;
             await user.save();
-            return res.json({ success: true, message: `Player status updated. Banned: ${banStatus}` });
+            return res.json({ success: true, message: `Player ban status updated: ${banStatus}` });
         }
 
         res.status(400).json({ success: false, message: "Invalid Action Code" });
