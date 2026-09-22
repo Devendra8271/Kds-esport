@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KDS E-sports — Master Admin</title>
+<style>
+body{margin:0;font-family:Inter,Arial;background:#070b11;color:#fff}.wrap{max-width:1250px;margin:auto;padding:20px}.card{background:#111925;border:1px solid #263447;border-radius:18px;padding:18px;margin-bottom:16px}input,select,button{width:100%;padding:11px;margin:5px 0;border-radius:10px;border:1px solid #344054;background:#0c141f;color:#fff;box-sizing:border-box}button{background:#00e887;color:#06130d;font-weight:900;cursor:pointer}.danger{background:#ff5d6c;color:#fff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}.logo{width:170px;height:60px;object-fit:contain}.item{border:1px solid #263447;border-radius:12px;padding:12px;margin:8px 0}.muted{color:#91a0b4}
+</style></head><body><div class="wrap">
+<div class="card"><div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap"><img class="logo" src="/kds-logo.svg"><div><h1>KDS Master Admin</h1><span class="muted">Payments · Players · Tournaments · Results · Governance</span></div></div>
+<div id="loginBox"><input id="ae" value="its.kds.dev@gmail.com" placeholder="Admin email"><input id="ap" type="password" placeholder="Admin password"><button onclick="adminLogin()">Secure Login</button><button onclick="adminForgot()">Forgot Admin Password</button></div>
+<div id="dash" style="display:none"><b>Admin authenticated</b> <button style="width:auto" onclick="refresh()">Refresh</button> <button style="width:auto" class="danger" onclick="logout()">Logout</button></div></div>
+<div id="panel" style="display:none">
+<div class="grid">
+<section class="card"><h2>Create Tournament</h2><input id="title" placeholder="Title"><select id="game"><option>Free Fire</option><option>BDG</option></select><input id="mode" placeholder="Mode"><input id="fee" type="number" placeholder="Entry fee"><input id="max" type="number" placeholder="Max players (0 = flexible)"><input id="banner" placeholder="Banner image URL"><input id="kill" type="number" placeholder="Per-kill rate"><input id="rank1" type="number" placeholder="Rank #1 prize"><input id="tiers" placeholder="Top 5 bonuses: 100,50,30,20,10"><button onclick="createTournament()">Create Tournament</button></section>
+<section class="card"><h2>Payment & Rules</h2><input id="upi" placeholder="UPI ID"><input id="qr" placeholder="QR image URL"><button onclick="savePayment()">Save UPI/QR</button><input id="lfm" type="number" value="10" placeholder="Free matches"><input id="lw" type="number" value="5" placeholder="Rank #1 wins"><button onclick="saveLoyalty()">Save Loyalty Rules</button><input id="minwd" type="number" value="50" placeholder="Minimum withdrawal"><button onclick="saveWithdrawalRule()">Save Withdrawal Rule</button></section>
+</div>
+<div class="grid"><section class="card"><h2>Pending Deposits / Withdrawals</h2><div id="requests"></div></section><section class="card"><h2>Players</h2><div id="players"></div></section></div>
+<section class="card"><h2>Tournament Control</h2><div id="matches"></div></section>
+<section class="card"><h2>Result / Proof Review</h2><div id="proofs"></div></section>
+</div></div>
+<script>
+let token=localStorage.getItem("kdsAdminToken");
+const H=()=>({"Content-Type":"application/json","x-admin-token":token});
+async function req(u,o={}){const r=await fetch("/api"+u,{...o,headers:{...H(),...(o.headers||{})}});const j=await r.json();if(!j.success)throw Error(j.error||"Failed");return j}
+async function adminLogin(){try{const r=await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:ae.value,password:ap.value})}),j=await r.json();if(!j.success)throw Error(j.error);token=j.token;localStorage.setItem("kdsAdminToken",token);loginBox.style.display="none";dash.style.display="block";panel.style.display="block";refresh()}catch(e){alert(e.message)}}
+async function adminForgot(){try{const j=await req("/admin/forgot-password",{method:"POST",body:JSON.stringify({email:ae.value})});alert(j.message)}catch(e){alert(e.message)}}
+async function refresh(){try{const d=await req("/admin/data");upi.value=d.settings.upiId||"";qr.value=d.settings.qrUrl||"";lfm.value=d.settings.loyaltyFreeMatches;lw.value=d.settings.loyaltyWins;minwd.value=d.settings.minWithdrawal;
+requests.innerHTML="<h3>Deposits</h3>"+d.deposits.filter(x=>x.status==="PENDING").map(x=>`<div class=item>${x.id} · ₹${x.amount} · UTR ${x.utr}<button onclick="processDeposit('${x.id}','APPROVE')">APPROVE</button><button class=danger onclick="processDeposit('${x.id}','REJECT')">REJECT</button></div>`).join("")+"<h3>Withdrawals</h3>"+d.withdrawals.filter(x=>x.status==="PENDING").map(x=>`<div class=item>${x.id} · ₹${x.amount} · ${x.upiId}<button onclick="processWithdrawal('${x.id}','APPROVE')">APPROVE</button><button class=danger onclick="processWithdrawal('${x.id}','REJECT')">REJECT / REFUND</button></div>`).join("");
+players.innerHTML=d.players.map(p=>`<div class=item><b>${esc(p.name)}</b> · ${esc(p.email)} · Wallet ₹${p.wallet} · ${p.isBanned?"BANNED":"ACTIVE"}<button onclick="ban('${p.id}',${!p.isBanned})">${p.isBanned?"UNBAN":"BAN"}</button></div>`).join("");
+matches.innerHTML=d.tournaments.map(t=>`<div class=item><b>${esc(t.title)}</b> · ${esc(t.gameCategory)} / ${esc(t.gameMode)} · ${t.status} · ${t.players.length}/${t.maxPlayers||"∞"}<input id="rid_${t.id}" placeholder="Room ID"><input id="rp_${t.id}" placeholder="Room Password"><input id="rm_${t.id}" value="${t.roomReleaseMinutes||15}" placeholder="Room visibility minutes"><button onclick="release('${t.id}')">Release Room Credentials</button><button onclick="start('${t.id}')">FORCE START</button><input id="su_${t.id}" placeholder="YouTube/Facebook/HLS stream URL"><button onclick="stream('${t.id}')">Set Stream</button><input id="bn_${t.id}" placeholder="Banner URL"><button onclick="banner('${t.id}')">Update Banner</button></div>`).join("");
+proofs.innerHTML=d.proofs.map(p=>`<div class=item>${p.id} · ${p.status} · Player ${p.playerId} · Kills ${p.killsClaimed} · <a href="${esc(p.screenshotUrl)}" target="_blank">Proof</a><input id="note_${p.id}" placeholder="Admin note"><button onclick="review('${p.id}','APPROVED')">Approve</button><button class=danger onclick="review('${p.id}','REJECTED')">Reject</button></div>`).join("")||"<span class=muted>No proofs.</span>";
+}catch(e){alert(e.message)}}
+async function createTournament(){try{await req("/admin/create-tournament",{method:"POST",body:JSON.stringify({title:title.value,gameCategory:game.value,gameMode:mode.value,entryFee:Number(fee.value),maxPlayers:Number(max.value)||0,bannerUrl:banner.value,perKillRate:Number(kill.value)||0,rank1Prize:Number(rank1.value)||0,tierBonuses:tiers.value.split(",").map(Number)})});refresh()}catch(e){alert(e.message)}}
+async function processDeposit(id,a){await req("/admin/deposit",{method:"POST",body:JSON.stringify({requestId:id,action:a})});refresh()}
+async function processWithdrawal(id,a){await req("/admin/withdraw",{method:"POST",body:JSON.stringify({requestId:id,action:a})});refresh()}
+async function ban(id,b){await req("/admin/user-ban",{method:"POST",body:JSON.stringify({playerId:id,banned:b})});refresh()}
+async function savePayment(){await req("/admin/payment-settings",{method:"POST",body:JSON.stringify({upiId:upi.value,qrUrl:qr.value}));alert("Saved")}
+async function saveLoyalty(){await req("/admin/loyalty-settings",{method:"POST",body:JSON.stringify({freeMatches:lfm.value,wins:lw.value}));alert("Saved")}
+async function saveWithdrawalRule(){await req("/admin/withdrawal-settings",{method:"POST",body:JSON.stringify({minWithdrawal:minwd.value}));alert("Saved")}
+async function release(id){await req("/admin/release-room",{method:"POST",body:JSON.stringify({tournamentId:id,roomId:$("rid_"+id).value,roomPass:$("rp_"+id).value,minutes:$("rm_"+id).value})});refresh()}
+async function start(id){await req("/admin/force-start",{method:"POST",body:JSON.stringify({tournamentId:id})});refresh()}
+async function stream(id){await req("/admin/stream",{method:"POST",body:JSON.stringify({tournamentId:id,platform:"WEB",streamUrl:$("su_"+id).value})});refresh()}
+async function banner(id){await req("/admin/banner",{method:"POST",body:JSON.stringify({tournamentId:id,bannerUrl:$("bn_"+id).value})});refresh()}
+async function review(id,status){await req("/admin/proof-review",{method:"POST",body:JSON.stringify({proofId:id,status,adminNote:$("note_"+id).value})});refresh()}
+function logout(){localStorage.removeItem("kdsAdminToken");location.reload()}
+function $(id){return document.getElementById(id)}
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+if(token){loginBox.style.display="none";dash.style.display="block";panel.style.display="block";refresh()}
+</script></body></html>
