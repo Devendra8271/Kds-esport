@@ -13,18 +13,17 @@ app.use(cors());
 app.use(express.static(__dirname));
 
 // Configuration Constants
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "dev8271@";
+const ADMIN_SECRET = "Dev8271@";
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://kdsadmin:KdsAdmin1234@cluster0.mgvdmwr.mongodb.net/kds_esports?retryWrites=true&w=majority";
 const ADMIN_EMAIL = "its.kds.dev@gmail.com";
-// Updated Google Apps Script URL provided by user
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzYf8qK96CVFiP4kvkf1fnyphK-ld7JLOoFew2jW1JEJ1Zknsg2dwp7hRSzVmWA1wR8Lw/exec";
 
-// Email Transporter setup for direct Nodemailer fallback
+// Email Transporter setup with verified App Password
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER || 'its.kds.dev@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
+        user: 'its.kds.dev@gmail.com',
+        pass: 'ecfz ymiu gcoj lsis'
     }
 });
 
@@ -113,7 +112,6 @@ const SupportTicket = mongoose.model('SupportTicket', new mongoose.Schema({
 }));
 
 const UsedUtr = mongoose.model('UsedUtr', new mongoose.Schema({ utr: { type: String, required: true, unique: true }, identifier: String, createdAt: { type: Date, default: Date.now } }));
-const Withdrawal = mongoose.model('Withdrawal', new mongoose.Schema({ id: String, identifier: String, amount: Number, upiId: String, status: { type: String, default: "PENDING" }, timestamp: { type: Date, default: Date.now } }));
 
 async function getConfigs() {
     let config = await SystemConfig.findOne();
@@ -121,7 +119,6 @@ async function getConfigs() {
     return config;
 }
 
-// Reset Weekly Limits Every Monday Midnight
 cron.schedule('0 0 * * 1', async () => {
     try { await User.updateMany({}, { $set: { weeklyFreeMatchesPlayed: 0, weeklyFreeWins: 0 } }); } catch (err) {}
 });
@@ -137,7 +134,7 @@ function calculateAge(dobString) {
 
 // --- API ENDPOINTS ---
 
-// PLAYER REGISTRATION (Fixed data forwarding and success/thank you notification to player & admin)
+// PLAYER REGISTRATION
 app.post('/api/player/register', async (req, res) => {
     try {
         const { name, email, mobile, dob, gender, password, referredBy } = req.body;
@@ -183,22 +180,7 @@ app.post('/api/player/register', async (req, res) => {
 
         await newUser.save();
 
-        // Forward to Google Apps Script & Send Confirmation/Thank You Email
         try {
-            await fetch(APPS_SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: "REGISTRATION",
-                    name,
-                    email: cleanEmail,
-                    mobile: cleanMobile,
-                    dob,
-                    gender,
-                    referralCode: referCode
-                })
-            });
-
             const welcomeHtml = `
                 <div style="font-family: Arial, sans-serif; padding: 20px; background: #121212; color: #fff; border-radius: 8px;">
                     <h2 style="color: #00ff88;">⚡ Welcome to KDS E-sport!</h2>
@@ -214,7 +196,6 @@ app.post('/api/player/register', async (req, res) => {
                 </div>
             `;
 
-            // Send Thank You message to Player Email
             transporter.sendMail({
                 from: 'KDS E-sports <its.kds.dev@gmail.com>',
                 to: cleanEmail,
@@ -222,7 +203,6 @@ app.post('/api/player/register', async (req, res) => {
                 html: welcomeHtml
             }, () => {});
 
-            // Send Notification to Admin Email
             transporter.sendMail({
                 from: 'KDS E-sports <its.kds.dev@gmail.com>',
                 to: ADMIN_EMAIL,
@@ -231,14 +211,14 @@ app.post('/api/player/register', async (req, res) => {
             }, () => {});
 
         } catch (scriptErr) {
-            console.error("App Script Trigger Error:", scriptErr.message);
+            console.error("Email Error:", scriptErr.message);
         }
 
         res.json({ success: true, message: "Registration Successful! Thank you messages and data sent successfully." });
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// PLAYER LOGIN (Fixed to work smoothly with both Email OR Mobile number)
+// PLAYER LOGIN
 app.post('/api/player/login', async (req, res) => {
     try {
         const { identifier, password } = req.body;
@@ -265,7 +245,7 @@ app.post('/api/player/login', async (req, res) => {
     } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
-// FORGOT PASSWORD (Fixed to work correctly with both Mobile Number and Email ID, sending email link)
+// FORGOT PASSWORD
 app.post('/api/player/forgot-password', async (req, res) => {
     try {
         const { identifier } = req.body;
@@ -309,7 +289,7 @@ app.post('/api/player/forgot-password', async (req, res) => {
         transporter.sendMail(mailOptions, (err) => {
             if (err) {
                 console.error("Mail Send Error:", err);
-                return res.status(500).json({ success: false, message: "Failed to send reset link email. Check email transporter configuration." });
+                return res.status(500).json({ success: false, message: "Failed to send reset link email. Please check configuration." });
             }
             res.json({ success: true, message: "Password reset link successfully sent to player's registered Email ID!" });
         });
