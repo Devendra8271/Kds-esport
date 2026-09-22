@@ -5,116 +5,144 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KDS E-sport Gaming Hub</title>
     <style>
-        :root { --primary: #00ff88; --dark: #0d0f12; --card: #181c24; --gold: #ffd700; }
-        body { margin: 0; font-family: sans-serif; background: var(--dark); color: #fff; }
+        :root { --primary: #00ff88; --dark: #0d0f12; --card: #181c24; --text: #ffffff; --gold: #ffd700; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--dark); color: var(--text); }
         .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--card); border-bottom: 2px solid var(--primary); }
-        .logo { font-size: 18px; font-weight: bold; color: var(--primary); }
-        /* Wallet hidden until login */
-        .wallet { background: #222a36; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: var(--gold); display: none; }
-        .container { padding: 15px; max-width: 500px; margin: auto; }
-        .card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #28303d; }
-        .btn { background: var(--primary); color: #000; border: none; padding: 10px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; }
-        .input { width: 93%; padding: 10px; margin: 8px 0; background: #0d0f12; border: 1px solid #28303d; color: #fff; border-radius: 5px; }
+        .logo-container { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, #00ff88, #00b3ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #000; box-shadow: 0 0 10px rgba(0,255,136,0.5); }
+        .logo-text { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 0.5px; }
+        .wallet { background: #222a36; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: var(--gold); border: 1px solid #333; display: none; } /* Hidden pre-login */
+        .container { padding: 15px; max-width: 600px; margin: auto; }
+        .card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #28303d; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .btn { background: var(--primary); color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn:hover { opacity: 0.9; transform: scale(1.01); }
+        .input { width: 95%; padding: 10px; margin: 8px 0; background: #0d0f12; border: 1px solid #28303d; color: #fff; border-radius: 5px; }
+        .input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div class="logo">⚡ KDS E-sport</div>
+        <div class="logo-container">
+            <div class="logo-icon">⚡</div>
+            <div class="logo-text">KDS E-sport<br><span style="font-size: 11px; color: #aaa; font-weight: normal;">Gaming Hub</span></div>
+        </div>
+        <!-- Wallet is completely hidden before login -->
         <div class="wallet" id="walletDisplay">Balance: ₹0</div>
     </div>
 
     <div class="container">
-        <!-- AUTH CARD -->
+        <!-- AUTH BOX -->
         <div id="authCard" class="card">
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <button class="btn" id="loginTab" onclick="switchTab('login')">Login</button>
-                <button class="btn" id="regTab" style="background:#333; color:#fff;" onclick="switchTab('register')">Register</button>
+            <!-- Tab Switch Buttons -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button class="btn" id="loginTabBtn" onclick="switchTab('login')" style="flex: 1; background: #00ff88; color: #000;">Login</button>
+                <button class="btn" id="regTabBtn" onclick="switchTab('register')" style="flex: 1; background: #333; color: #fff;">Register</button>
             </div>
 
-            <!-- LOGIN FORM -->
+            <!-- 1. Login Form -->
             <div id="loginForm">
-                <h3>🔐 Player Login</h3>
-                <input type="text" id="loginId" class="input" placeholder="Mobile Number or Email">
-                <input type="password" id="loginPass" class="input" placeholder="Password">
-                <button class="btn" onclick="handleLogin()">Login</button>
-                <p style="text-align:center;"><a href="#" onclick="forgotPassword()" style="color:var(--primary);">Forgot Password?</a></p>
+                <h3 style="margin-top: 0; color: var(--primary);">🔐 Player Login</h3>
+                <input type="text" id="loginIdentifier" class="input" placeholder="Mobile Number or Email">
+                <input type="password" id="loginPassword" class="input" placeholder="Password">
+                <button class="btn" onclick="handleLogin()" style="width: 100%; margin-top: 10px;">Login</button>
+                <p style="margin-top: 10px; text-align: center;">
+                    <a href="#" onclick="forgotPassword()" style="color: #00ff88; text-decoration: none;">Forgot Password?</a>
+                </p>
             </div>
 
-            <!-- REGISTER FORM -->
+            <!-- 2. Registration Form -->
             <div id="registerForm" style="display: none;">
-                <h3>📝 New Registration</h3>
+                <h3 style="margin-top: 0; color: var(--primary);">📝 New Player Registration</h3>
                 <input type="text" id="regName" class="input" placeholder="Full Name">
                 <input type="email" id="regEmail" class="input" placeholder="Email Address">
                 <input type="text" id="regMobile" class="input" placeholder="Mobile Number">
                 
-                <!-- Native Browser Date Picker Popup -->
-                <input type="date" id="regDob" class="input" title="Select Date of Birth">
+                <!-- Native HTML5 Date Picker for Auto Calendar Suggestion -->
+                <input type="date" id="regDob" class="input" placeholder="Date of Birth">
                 
                 <select id="regGender" class="input">
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                 </select>
                 
-                <!-- Referral Option -->
+                <!-- Optional Referral Code Field -->
                 <input type="text" id="regReferral" class="input" placeholder="Referral Code (Optional)">
                 
-                <input type="password" id="regPass" class="input" placeholder="Create Password">
-                <button class="btn" onclick="handleRegister()">Register Now</button>
+                <input type="password" id="regPassword" class="input" placeholder="Create Password">
+                <input type="password" id="regConfirmPassword" class="input" placeholder="Confirm Password">
+                <button class="btn" onclick="handleRegister()" style="width: 100%; margin-top: 10px;">Register Now</button>
             </div>
         </div>
 
-        <!-- DASHBOARD -->
-        <div id="dashboard" style="display: none;">
-            <h3>🎮 Available Matches</h3>
-            <div id="matchesList"></div>
+        <!-- MAIN DASHBOARD -->
+        <div id="mainDashboard" class="hidden">
+            <div class="card">
+                <h2 style="color: var(--primary); margin-top: 0;">Welcome, <span id="playerName">Player</span>!</h2>
+                <p style="color: #aaa;">Your Matches and Live Tournaments will appear here.</p>
+                <button class="btn" onclick="logout()" style="background: #ff4444; color: #fff; width: auto;">Logout</button>
+            </div>
         </div>
     </div>
 
     <script>
-        const API = "/api";
+        const API_URL = "/api";
         let currentUser = null;
 
         function switchTab(tab) {
             if (tab === 'login') {
                 document.getElementById('loginForm').style.display = 'block';
                 document.getElementById('registerForm').style.display = 'none';
-                document.getElementById('loginTab').style.background = '#00ff88'; document.getElementById('loginTab').style.color = '#000';
-                document.getElementById('regTab').style.background = '#333'; document.getElementById('regTab').style.color = '#fff';
+                document.getElementById('loginTabBtn').style.background = '#00ff88';
+                document.getElementById('loginTabBtn').style.color = '#000';
+                document.getElementById('regTabBtn').style.background = '#333';
+                document.getElementById('regTabBtn').style.color = '#fff';
             } else {
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('registerForm').style.display = 'block';
-                document.getElementById('regTab').style.background = '#00ff88'; document.getElementById('regTab').style.color = '#000';
-                document.getElementById('loginTab').style.background = '#333'; document.getElementById('loginTab').style.color = '#fff';
+                document.getElementById('regTabBtn').style.background = '#00ff88';
+                document.getElementById('regTabBtn').style.color = '#000';
+                document.getElementById('loginTabBtn').style.background = '#333';
+                document.getElementById('loginTabBtn').style.color = '#fff';
             }
         }
 
         async function handleLogin() {
-            const identifier = document.getElementById('loginId').value;
-            const password = document.getElementById('loginPass').value;
+            const identifier = document.getElementById('loginIdentifier').value;
+            const password = document.getElementById('loginPassword').value;
 
-            const res = await fetch(`${API}/player/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier, password })
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                alert('Login Successful!');
-                currentUser = data.user;
+            if (!identifier || !password) {
+                alert('Please fill in all login fields!');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/player/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier, password })
+                });
+                const result = await res.json();
                 
-                // Show Wallet only after Successful Login
-                const wallet = document.getElementById('walletDisplay');
-                wallet.innerText = `Balance: ₹${currentUser.walletBalance || 0}`;
-                wallet.style.display = 'block';
-
-                document.getElementById('authCard').style.display = 'none';
-                document.getElementById('dashboard').style.display = 'block';
-                loadMatches();
-            } else {
-                alert(data.message);
+                if (res.ok && result.success) {
+                    alert('Login Successful!');
+                    currentUser = result.user;
+                    
+                    // Show Wallet and Dashboard Post-Login Only
+                    document.getElementById('walletDisplay').style.display = 'block';
+                    document.getElementById('walletDisplay').innerText = `Balance: ₹${currentUser.walletBalance}`;
+                    document.getElementById('playerName').innerText = currentUser.name;
+                    
+                    document.getElementById('authCard').style.display = 'none';
+                    document.getElementById('mainDashboard').classList.remove('hidden');
+                } else {
+                    alert(result.message || 'Login Failed!');
+                }
+            } catch (err) {
+                alert('Server Error during login!');
             }
         }
 
@@ -125,44 +153,60 @@
             const dob = document.getElementById('regDob').value;
             const gender = document.getElementById('regGender').value;
             const referralCode = document.getElementById('regReferral').value;
-            const password = document.getElementById('regPass').value;
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
 
-            const res = await fetch(`${API}/player/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, mobile, dob, gender, referralCode, password })
-            });
-            const data = await res.json();
-            alert(data.message);
-            if (data.success) switchTab('login');
+            if (!name || !email || !mobile || !dob || !gender || !password || !confirmPassword) {
+                alert('Please fill all required fields!');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_URL}/player/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, mobile, dob, gender, password, referralCode })
+                });
+                const result = await res.json();
+
+                if (res.ok && result.success) {
+                    alert('Registration Successful! Please login now.');
+                    switchTab('login');
+                } else {
+                    alert(result.message || 'Registration Failed!');
+                }
+            } catch (err) {
+                alert('Server Error during registration!');
+            }
         }
 
         async function forgotPassword() {
-            const identifier = prompt('Enter registered Email or Mobile Number:');
-            if (identifier) {
-                const res = await fetch(`${API}/player/forgot-password`, {
+            const identifier = prompt('Enter your registered Email or Mobile Number:');
+            if (!identifier) return;
+
+            try {
+                const res = await fetch(`${API_URL}/player/forgot-password`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ identifier })
                 });
-                const data = await res.json();
-                alert(data.message);
+                const result = await res.json();
+                alert(result.message);
+            } catch (err) {
+                alert('Error sending reset link!');
             }
         }
 
-        async function loadMatches() {
-            const res = await fetch(`${API}/tournaments`);
-            const data = await res.json();
-            const container = document.getElementById('matchesList');
-            container.innerHTML = "";
-            (data.tournaments || []).forEach(m => {
-                container.innerHTML += `
-                    <div class="card">
-                        <h4>${m.gameName} (${m.matchMode})</h4>
-                        <p>Date: ${m.matchDate} | Fee: ₹${m.entryFee}</p>
-                    </div>
-                `;
-            });
+        function logout() {
+            currentUser = null;
+            document.getElementById('walletDisplay').style.display = 'none';
+            document.getElementById('mainDashboard').classList.add('hidden');
+            document.getElementById('authCard').style.display = 'block';
         }
     </script>
 </body>
