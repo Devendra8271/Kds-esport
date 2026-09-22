@@ -11,7 +11,7 @@
         .logo-container { display: flex; align-items: center; gap: 10px; }
         .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, #00ff88, #00b3ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; color: #000; box-shadow: 0 0 10px rgba(0,255,136,0.5); }
         .logo-text { font-size: 18px; font-weight: bold; color: var(--primary); letter-spacing: 0.5px; }
-        .wallet { background: #222a36; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: var(--gold); border: 1px solid #333; }
+        .wallet { background: #222a36; padding: 6px 12px; border-radius: 20px; font-weight: bold; color: var(--gold); border: 1px solid #333; display: none; }
         .container { padding: 15px; max-width: 600px; margin: auto; }
         .card { background: var(--card); border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #28303d; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .btn { background: var(--primary); color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%; transition: 0.2s; }
@@ -34,6 +34,7 @@
             <div class="logo-icon">⚡</div>
             <div class="logo-text">KDS E-sport<br><span style="font-size: 11px; color: #aaa; font-weight: normal;">Gaming Hub</span></div>
         </div>
+        <!-- Wallet hidden initially -->
         <div class="wallet" id="walletDisplay">Balance: ₹0</div>
     </div>
 
@@ -67,13 +68,20 @@
                 <input type="text" id="regName" class="input" placeholder="Full Name">
                 <input type="email" id="regEmail" class="input" placeholder="Email Address">
                 <input type="text" id="regMobile" class="input" placeholder="Mobile Number">
-                <input type="date" id="regDob" class="input" placeholder="Date of Birth">
+                
+                <!-- Native Date Picker for Auto Calendar Suggestion -->
+                <input type="date" id="regDob" class="input" title="Select Date of Birth">
+                
                 <select id="regGender" class="input">
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>
                 </select>
+                
+                <!-- Referral Code Added -->
+                <input type="text" id="regReferral" class="input" placeholder="Referral Code (Optional)">
+                
                 <input type="password" id="regPassword" class="input" placeholder="Create Password">
                 <input type="password" id="regConfirmPassword" class="input" placeholder="Confirm Password">
                 <button class="btn" onclick="handleRegister()" style="width: 100%; margin-top: 10px;">Register Now</button>
@@ -131,7 +139,6 @@
         let selectedMatch = null;
         let appApkUrl = "";
 
-        // Tab Switching Logic
         function switchTab(tab) {
             if (tab === 'login') {
                 document.getElementById('loginForm').style.display = 'block';
@@ -150,7 +157,6 @@
             }
         }
 
-        // Player Login Function
         async function handleLogin() {
             const identifier = document.getElementById('loginIdentifier').value;
             const password = document.getElementById('loginPassword').value;
@@ -171,7 +177,12 @@
                 if (res.ok && result.success) {
                     alert('Login Successful!');
                     currentUser = result.user;
-                    document.getElementById('walletDisplay').innerText = `Balance: ₹${currentUser.walletBalance || 0}`;
+                    
+                    // Show Wallet only on Successful Login
+                    const walletElem = document.getElementById('walletDisplay');
+                    walletElem.innerText = `Balance: ₹${currentUser.walletBalance || 0}`;
+                    walletElem.style.display = 'block';
+
                     document.getElementById('authCard').style.display = 'none';
                     document.getElementById('mainDashboard').style.display = 'block';
                     loadTournaments();
@@ -183,13 +194,13 @@
             }
         }
 
-        // Player Registration Function
         async function handleRegister() {
             const name = document.getElementById('regName').value;
             const email = document.getElementById('regEmail').value;
             const mobile = document.getElementById('regMobile').value;
             const dob = document.getElementById('regDob').value;
             const gender = document.getElementById('regGender').value;
+            const referralCode = document.getElementById('regReferral').value;
             const password = document.getElementById('regPassword').value;
             const confirmPassword = document.getElementById('regConfirmPassword').value;
 
@@ -207,7 +218,7 @@
                 const res = await fetch(`${API_URL}/player/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, mobile, dob, gender, password })
+                    body: JSON.stringify({ name, email, mobile, dob, gender, referralCode, password })
                 });
                 const result = await res.json();
 
@@ -222,7 +233,6 @@
             }
         }
 
-        // Forgot Password Function
         async function forgotPassword() {
             const identifier = prompt('Enter your registered Email or Mobile Number:');
             if (identifier) {
@@ -235,7 +245,7 @@
                     const result = await res.json();
                     alert(result.message);
                 } catch (err) {
-                    alert('Server error during password reset request.');
+                    alert('Server error during password recovery!');
                 }
             }
         }
